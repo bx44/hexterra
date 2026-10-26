@@ -110,7 +110,7 @@ body.ingame #app{max-width:none;height:100dvh;height:100vh;height:100dvh}
 .gstat span{flex:1;min-width:0}
 .sm{padding:5px 9px;font-size:13px;display:inline-flex;align-items:center;gap:4px;border-radius:9px}
 .gmid{flex:1;min-height:0}
-.boardbox{background:var(--sea2);border-radius:16px;overflow:hidden;position:relative;touch-action:manipulation}
+.boardbox{background:var(--sea2);border-radius:16px;overflow:hidden;position:relative;touch-action:none}
 .boardbox svg{display:block;width:100%;height:100%}
 .gmid.boardbox{display:flex}
 .ctrlboard{outline:3px solid var(--hl);outline-offset:-3px}
@@ -261,6 +261,9 @@ button.big{min-height:54px;font-size:17px;display:flex;align-items:center;justif
 #tmr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}#tmr button{padding:9px 4px}
 .tag.bot{background:var(--soft);color:var(--muted);border:1px solid var(--line)}
 .addbot{display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px dashed var(--line)}
+.zoom{position:absolute;right:max(10px,env(safe-area-inset-right,0px));bottom:10px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.zoom button{width:44px;height:44px;padding:0;border-radius:50%;font-size:24px;font-weight:800;display:grid;place-items:center;background:rgba(251,253,252,.92);color:#14262b;border:1px solid rgba(0,0,0,.15);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.sboard .zoom{bottom:max(14px,env(safe-area-inset-bottom,0px))}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -1380,12 +1383,28 @@ function targets(){
   return t;
 }
 
+/* the part of the map worth showing: the land, its ports and a thin rim of sea (all of it in Navegantes, where ships sail) */
+function fitBox(S,B){
+  const R3=Math.sqrt(3);let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  const grow=(x,y,m)=>{x0=Math.min(x0,x-m);x1=Math.max(x1,x+m);y0=Math.min(y0,y-m);y1=Math.max(y1,y+m)};
+  if(MODES[S.mode].ships)B.hexes.forEach(h=>{x0=Math.min(x0,h.x-R3/2);x1=Math.max(x1,h.x+R3/2);y0=Math.min(y0,h.y-1);y1=Math.max(y1,h.y+1)});
+  else{B.hexes.forEach(h=>{if(h.type!=='sea'){x0=Math.min(x0,h.x-R3/2);x1=Math.max(x1,h.x+R3/2);y0=Math.min(y0,h.y-1);y1=Math.max(y1,h.y+1)}});B.ports.forEach(p=>grow(p.x,p.y,.32))}
+  const m=.12;return{x:(x0-m)*48,y:(y0-m)*48,w:(x1-x0+2*m)*48,h:(y1-y0+2*m)*48};
+}
+function viewBoxFor(S,B){
+  const f=fitBox(S,B),z=U.zoom||1;
+  if(z<=1.01)return`${f.x} ${f.y} ${f.w} ${f.h}`;
+  const w=f.w/z,h=f.h/z;
+  let cx=U.zcx==null?f.x+f.w/2:U.zcx,cy=U.zcy==null?f.y+f.h/2:U.zcy;
+  cx=Math.max(f.x+w*.3,Math.min(f.x+f.w-w*.3,cx));cy=Math.max(f.y+h*.3,Math.min(f.y+f.h-h*.3,cy));U.zcx=cx;U.zcy=cy;
+  return`${cx-w/2} ${cy-h/2} ${w} ${h}`;
+}
 function boardSvg(passive){
   const S=G,B=board(S),Z=48,{x0,x1,y0,y1}=B.bounds,pad=.15;
-  const vb=`${(x0-pad)*Z} ${(y0-pad)*Z} ${(x1-x0+2*pad)*Z} ${(y1-y0+2*pad)*Z}`;
+  const vb=viewBoxFor(S,B);
   const T=passive?{v:[],e:[],h:[]}:targets();const out=[];
   const poly=(h,s)=>{const p=[];for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30);p.push(((h.x+Math.cos(a)*s)*Z).toFixed(1)+','+((h.y+Math.sin(a)*s)*Z).toFixed(1))}return p.join(' ')};
-  out.push(`<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tablero">`);
+  out.push(`<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tablero" id="bsvg">`);
   out.push(`<defs>${glyphDefs()}</defs>`);
   out.push(`<rect x="${(x0-pad)*Z}" y="${(y0-pad)*Z}" width="${(x1-x0+2*pad)*Z}" height="${(y1-y0+2*pad)*Z}" fill="var(--sea2)"/>`);
   B.hexes.forEach((h,i)=>{
@@ -1552,7 +1571,7 @@ function renderScreen(){
   $('#sheet').innerHTML='';
   $('#app').innerHTML=`${comDefs()}
   <div class="scr">
-    <div class="sboard boardbox">${boardSvg(true)}</div>
+    <div class="sboard boardbox" id="board">${boardSvg(true)}${zoomCtl()}</div>
     <aside class="sside">
       <div class="shead"><span class="brandmini">${logoSvg(28)} Hexterra</span><span class="code">${S.code}</span>${netPill()}<span class="grow"></span>${S.timer?`<button class="iconb" id="pz" aria-label="Pausar">${ic(S.paused!=null?'play':'pause',20)}</button>`:''}<button class="iconb" id="mesa" aria-label="Opciones">${ic('menu',20)}</button></div>
       <div class="sstat"><div class="srow">${diceHtml(56)}<span class="grow"></span>${timerHtml(64)}</div><div class="stx">${ic(st.i,26)}<span>${st.t}</span></div></div>
@@ -1562,7 +1581,7 @@ function renderScreen(){
       <div class="log">${S.log.slice(-8).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div>
     </aside>
   </div>`;
-  $('#mesa').onclick=()=>{U.sheet='mesa';renderSheet()};
+  $('#mesa').onclick=()=>{U.sheet='mesa';renderSheet()};bindZoom($('#board'));
   if($('#pz'))$('#pz').onclick=()=>send({t:'pause'});
   tickTimers();
   if(U.sheet==='mesa')renderSheet();
@@ -1584,12 +1603,15 @@ function renderGame(){
   </header>`;
   const stat=`<div class="gstat ${st.me&&S.phase!=='over'?'me':''}">${ic(st.i,20)}<span>${st.t}</span>${U.mode?`<button class="sm" id="cmode">${ic('close',14)} Cancelar</button>`:''}</div>`;
   const handBlock=P?handHtml(P,showBoard&&!wide):'';
-  const panel=`${top}${stat}${showBoard&&!wide?`<div class="gmid boardbox ${need?'ctrlboard':''}" id="board">${boardSvg()}</div>`:''}
-    ${!showBoard?`<div class="gmid handwrap">${handBlock}</div>`:handBlock}
-    ${offerHtml(pi)}${dockHtml(pi)}`;
-  $('#app').innerHTML=`${comDefs()}${wide?`<div class="gwide"><div class="boardbox wb" id="board">${boardSvg()}</div><div class="g">${panel}</div></div>`:`<div class="g">${panel}</div>`}`;
+  /* while choosing a spot on a phone, the map takes the whole middle: no dock, no hand */
+  const focus=need&&!wide;
+  autoFrame(T0,need);
+  const panel=`${top}${stat}${showBoard&&!wide?`<div class="gmid boardbox ${need?'ctrlboard':''}" id="board">${boardSvg()}${zoomCtl()}</div>`:''}
+    ${!showBoard?`<div class="gmid handwrap">${handBlock}</div>`:focus?'':handBlock}
+    ${focus?'':offerHtml(pi)+dockHtml(pi)}`;
+  $('#app').innerHTML=`${comDefs()}${wide?`<div class="gwide"><div class="boardbox wb" id="board">${boardSvg()}${zoomCtl()}</div><div class="g">${panel}</div></div>`:`<div class="g">${panel}</div>`}`;
   const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};
-  if($('#board'))$('#board').onclick=boardClick;
+  if($('#board')){$('#board').onclick=boardClick;bindZoom($('#board'))}
   on('mesa',()=>{U.sheet='mesa';renderSheet()});
   on('tgb',()=>{U.showBoard=!U.showBoard;renderGame()});
   on('cmode',()=>{U.mode=null;U.kfrom=null;U.inv=[];U.pcard=null;renderGame()});
@@ -1792,6 +1814,46 @@ function scheduleBots(){
     botBusy=true;try{await sendAs(m.id,a)}finally{botBusy=false}
     scheduleBots();
   },n.delay);
+}
+
+/* ---------- map zoom: pinch, drag, + / − ---------- */
+function zoomCtl(){return`<div class="zoom"><button data-z="in" aria-label="Acercar">+</button><button data-z="out" aria-label="Alejar">−</button>${(U.zoom||1)>1.01?`<button data-z="fit" aria-label="Ver todo">${ic('board',18)}</button>`:''}</div>`}
+function applyVB(){const svg=document.getElementById('bsvg');if(svg&&G)svg.setAttribute('viewBox',viewBoxFor(G,board(G)))}
+function setZoom(z,cx,cy){U.zoom=Math.max(1,Math.min(4,z));if(U.zoom<=1.01){U.zoom=1;U.zcx=U.zcy=null}else{if(cx!=null){U.zcx=cx;U.zcy=cy}}applyVB();const zc=document.querySelector('.zoom');if(zc)zc.outerHTML=zoomCtl(),bindZoomBtns()}
+function bindZoomBtns(){document.querySelectorAll('[data-z]').forEach(b=>b.onclick=e=>{e.stopPropagation();const z=U.zoom||1;
+  if(b.dataset.z==='in')setZoom(z*1.5);else if(b.dataset.z==='out')setZoom(z/1.5);else setZoom(1)})}
+function bindZoom(box){
+  if(!box)return;bindZoomBtns();
+  const pts=new Map();let start=null,moved=false;
+  const svgPt=(cx,cy)=>{const svg=document.getElementById('bsvg'),r=svg.getBoundingClientRect(),vb=svg.viewBox.baseVal;
+    const sc=Math.min(r.width/vb.width,r.height/vb.height),ox=(r.width-vb.width*sc)/2,oy=(r.height-vb.height*sc)/2;
+    return{x:vb.x+(cx-r.left-ox)/sc,y:vb.y+(cy-r.top-oy)/sc,sc}};
+  box.addEventListener('pointerdown',e=>{if(e.target.closest('.zoom'))return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=false;
+    const vb=document.getElementById('bsvg').viewBox.baseVal;start={z:U.zoom||1,cx:vb.x+vb.width/2,cy:vb.y+vb.height/2,pts:new Map(pts),d:null};
+    if(pts.size===2){const[a,b]=[...pts.values()];start.d=Math.hypot(a.x-b.x,a.y-b.y);start.mid=svgPt((a.x+b.x)/2,(a.y+b.y)/2)}});
+  box.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId)||!start)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size>=2&&start.d){const[a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);moved=true;setZoom(start.z*d/start.d,start.mid.x,start.mid.y);return}
+    const p0=start.pts.get(e.pointerId);if(!p0)return;const dx=e.clientX-p0.x,dy=e.clientY-p0.y;
+    if(Math.hypot(dx,dy)>8)moved=true;
+    if(moved&&(U.zoom||1)>1.01){const sc=svgPt(0,0).sc;U.zcx=start.cx-dx/sc;U.zcy=start.cy-dy/sc;applyVB()}});
+  const up=e=>{pts.delete(e.pointerId);if(pts.size<2&&start)start.d=null;if(!pts.size)setTimeout(()=>{start=null},0)};
+  box.addEventListener('pointerup',up);box.addEventListener('pointercancel',up);
+  box.addEventListener('click',e=>{if(moved){e.stopPropagation();e.preventDefault();moved=false}},true);
+  box.addEventListener('wheel',e=>{if(!e.ctrlKey&&Math.abs(e.deltaY)<4)return;e.preventDefault();const p=svgPt(e.clientX,e.clientY);setZoom((U.zoom||1)*(e.deltaY<0?1.15:1/1.15),p.x,p.y)},{passive:false});
+}
+
+/* when the choices sit in one corner of the map (a road next to your new settlement), frame them */
+function autoFrame(T,need){
+  const B=board(G);
+  if(!need){if(U.autoKey){U.autoKey=null;U.zoom=1;U.zcx=U.zcy=null}return}
+  const key=(U.mode||G.step)+':'+T.v.join(',')+':'+T.e.join(',')+':'+T.h.join(',');
+  if(U.autoKey===key)return;U.autoKey=key;
+  const P=[...T.v.map(i=>B.verts[i]),...T.e.map(i=>B.edges[i]),...T.h.map(i=>B.hexes[i])];
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;P.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y)});
+  const f=fitBox(G,B),m=2.2*48,w=(x1-x0)*48+2*m,h=(y1-y0)*48+2*m;
+  const z=Math.min(2,f.w/w,f.h/h);
+  if(z<1.25){U.zoom=1;U.zcx=U.zcy=null;return}
+  U.zoom=z;U.zcx=(x0+x1)/2*48;U.zcy=(y0+y1)/2*48;
 }
 
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
