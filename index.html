@@ -1,0 +1,1516 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hexterra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap">
+<style>
+/* Layout: a chart-table — the island map is the hero, a slim ledger of players and your hand sits beside it (below it on phones). */
+:root{
+  --bg:#e9efee; --panel:#fbfdfc; --ink:#14262b; --muted:#5a6e73; --line:#cfdbda; --accent:#176a73; --accent-ink:#ffffff; --hl:#f0b429; --bad:#b4372a; --soft:#dfe8e7;
+  --sea1:#2f6e8f; --sea2:#2a6584;
+  --t-trade:#d9a520; --t-politics:#2f63c4; --t-science:#2f8f4a;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"Nunito Sans", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1b1e; --panel:#152529; --ink:#e4eeee; --muted:#93a8ab; --line:#26403f; --accent:#4bb1ba; --accent-ink:#06282c; --hl:#f4c04a; --bad:#ef7a6b; --soft:#1c3135;
+  --sea1:#1f4f69; --sea2:#1b4760; --t-trade:#e8b93a; --t-politics:#5b8ee6; --t-science:#4fb46a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1b1e; --panel:#152529; --ink:#e4eeee; --muted:#93a8ab; --line:#26403f; --accent:#4bb1ba; --accent-ink:#06282c; --hl:#f4c04a; --bad:#ef7a6b; --soft:#1c3135;
+  --sea1:#1f4f69; --sea2:#1b4760; --t-trade:#e8b93a; --t-politics:#5b8ee6; --t-science:#4fb46a; color-scheme:dark}
+html,body{background:var(--bg);color:var(--ink)}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
+.net{font-size:12px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--soft);border:1px solid var(--line)}
+.net.bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+.qr{background:#fff;padding:10px;border-radius:12px;display:inline-block;line-height:0}
+.qr img,.qr canvas{width:clamp(140px,18vw,240px)!important;height:auto!important}
+body{font-family:var(--f-body);font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 40px}
+*{box-sizing:border-box}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 14px;font-weight:700}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid var(--hl);outline-offset:2px}
+button.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.on{background:var(--hl);color:#2a1d00;border-color:var(--hl)}
+input{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-width:0}
+.wrap{max-width:1180px;margin:0 auto}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.lbl{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.notice{padding:12px 14px;border-radius:12px;background:var(--soft);border:1px solid var(--line)}
+
+/* home */
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.brand h1{font-size:clamp(34px,7vw,56px);font-weight:800;letter-spacing:-.02em;line-height:1}
+.brand p{margin:4px 0 0;color:var(--muted)}
+.home{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px}
+@media (max-width:820px){.home{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.modes{grid-template-columns:1fr}}
+.mode{text-align:left;display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:12px}
+.mode b{font-family:var(--f-display);font-size:17px}
+.mode span{font-weight:400;font-size:12.5px;color:var(--muted)}
+.mode.sel{border:2px solid var(--accent);background:var(--soft)}
+.toggle{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:12px;border-radius:12px}
+.toggle .box{flex:none;width:22px;height:22px;border-radius:6px;border:2px solid var(--accent);display:grid;place-items:center;font-weight:900;color:var(--accent-ink)}
+.toggle.sel .box{background:var(--accent)}
+.toggle.sel{border:2px solid var(--accent);background:var(--soft)}
+.toggle span{font-weight:400;font-size:12.5px;color:var(--muted)}
+.glist{display:flex;flex-direction:column;gap:6px}
+.gitem{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);text-align:left;font-weight:600}
+.code{font-family:var(--f-display);letter-spacing:.12em;font-weight:800}
+
+/* game */
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.top h2{font-size:24px;font-weight:800}
+.game{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:14px;align-items:start}
+@media (max-width:900px){.game{grid-template-columns:1fr}}
+.boardcol{display:flex;flex-direction:column;gap:10px;min-width:0}
+.boardbox{background:var(--sea2);border-radius:18px;overflow:hidden;position:relative;touch-action:manipulation}
+.boardbox svg{display:block;width:100%;height:auto;max-height:78vh}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.banner{padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);display:flex;gap:12px;align-items:center}
+.banner.me{border:2px solid var(--hl)}
+.banner .t{font-family:var(--f-display);font-weight:800;font-size:17px;line-height:1.2}
+.dice{display:flex;gap:6px;flex:none}
+.players{display:flex;flex-direction:column;gap:6px}
+.pl{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:var(--panel)}
+.pl.cur{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.dot{width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(0,0,0,.35)}
+.pl .nm{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl .st{font-size:12px;color:var(--muted)}
+.vp{font-family:var(--f-display);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:99px;background:var(--hl);color:#2a1d00;margin-left:4px}
+.hand{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px}
+.rc{border-radius:10px;padding:8px 4px 6px;text-align:center;color:#fff;font-weight:800;position:relative}
+.rc .n{font-family:var(--f-display);font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.rc .k{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;opacity:.92}
+.r-wood{background:#2f6b33}.r-brick{background:#b5542e}.r-sheep{background:#79a83b}.r-wheat{background:#d6a51f;color:#3a2a00}.r-ore{background:#69737d}.r-gold{background:#c9961a;color:#3a2a00}
+.r-paper{background:#3f8f6b}.r-cloth{background:#b8902a}.r-coin{background:#3e5f9e}
+.r-paper,.r-cloth,.r-coin{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.12) 0 4px,transparent 4px 9px)}
+.acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.acts button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left}
+.acts button small{font-weight:400;font-size:11.5px;color:inherit;opacity:.75}
+.acts .wide{grid-column:1/-1;align-items:center}
+.devs{display:flex;flex-direction:column;gap:6px}
+.dev{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--soft)}
+.dev .d{font-size:12px;color:var(--muted)}
+.pc{border-left:4px solid var(--line)}
+.pc-trade{border-left-color:var(--t-trade)}.pc-politics{border-left-color:var(--t-politics)}.pc-science{border-left-color:var(--t-science)}
+.log{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px;max-height:180px;overflow:auto}
+.log div:first-child{color:var(--ink);font-weight:600}
+.offer{border:2px dashed var(--accent);border-radius:14px;padding:12px;background:var(--panel);display:flex;flex-direction:column;gap:8px}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{font-size:12.5px;font-weight:800;padding:2px 8px;border-radius:8px;color:#fff}
+/* barbarians + improvements */
+.barb{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.track{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.track span{height:26px;border-radius:6px;background:var(--soft);display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--muted)}
+.track span.ship{background:#3b2f3a;color:#fff}
+.track span.land{background:#b5542e;color:#fff}
+.imps{display:flex;flex-direction:column;gap:6px}
+.imp{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--soft)}
+.imp .nm{font-weight:800}
+.pips{display:flex;gap:3px;margin-top:3px}
+.pips i{width:16px;height:8px;border-radius:3px;background:var(--line);display:block}
+.imp-trade .pips i.f{background:var(--t-trade)}.imp-politics .pips i.f{background:var(--t-politics)}.imp-science .pips i.f{background:var(--t-science)}
+/* board svg */
+.tgt{cursor:pointer}
+.pulse{animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+/* sheet */
+.veil{position:fixed;inset:0;background:rgba(5,15,18,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0 max(0px,env(safe-area-inset-right,0px)) 0 max(0px,env(safe-area-inset-left,0px))}
+.sheet{background:var(--panel);width:min(560px,100%);border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-left,0px)) calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;max-height:88vh;overflow:auto}
+.sheet h3{font-size:20px}
+.steps{display:flex;flex-direction:column;gap:6px}
+.stp{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;align-items:center}
+.stp .q{min-width:28px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
+.stp button{padding:6px 12px}
+.tabs{display:flex;gap:6px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:700;z-index:80;max-width:min(92vw,480px);text-align:center}
+.lobbycode{font-family:var(--f-display);font-weight:800;font-size:clamp(44px,12vw,72px);letter-spacing:.14em;line-height:1}
+.win{font-family:var(--f-display);font-weight:800;font-size:22px}
+.viewbar{display:flex;gap:4px;padding:3px;border-radius:12px;background:var(--soft);border:1px solid var(--line)}
+.viewbar button{padding:6px 10px;border:0;background:transparent;font-size:13px}
+.viewbar button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+/* table screen: the board fills the TV, the ledger sits right */
+.scr{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,26vw);gap:18px;align-items:start}
+@media (max-width:760px){.scr{grid-template-columns:1fr}}
+.scr .boardbox svg{max-height:calc(100vh - 110px)}
+.scr .banner .t{font-size:clamp(20px,2.2vw,32px)}
+.scr .banner .dice svg{width:clamp(40px,4vw,64px);height:clamp(40px,4vw,64px)}
+.scr .pl .nm{font-size:clamp(15px,1.3vw,20px)}
+.scr .vp{font-size:clamp(24px,2.4vw,38px)}
+.scr .log{max-height:30vh;font-size:clamp(13px,1vw,16px)}
+.joinhint{display:flex;gap:14px;align-items:center;padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+.joinhint .code{font-size:clamp(28px,3vw,44px)}
+.ctrlboard{border:3px solid var(--hl)}
+.modebar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:12px;background:var(--hl);color:#2a1d00;font-weight:800}
+.modebar button{padding:5px 10px;background:#fff8e2;color:#2a1d00;border-color:transparent}
+</style>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="wrap" id="app"></div>
+<div id="sheet"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ==== ENGINE START ==== */
+const RES=['wood','brick','sheep','wheat','ore'];
+const COM=['paper','cloth','coin'];
+const ALL=[...RES,...COM];
+const RES_ES={wood:'Madera',brick:'Arcilla',sheep:'Lana',wheat:'Trigo',ore:'Mineral',paper:'Papel',cloth:'Tela',coin:'Moneda',gold:'Oro',desert:'Desierto',sea:'Mar'};
+const COMOF={wood:'paper',sheep:'cloth',ore:'coin'};
+const TRACKS=['trade','politics','science'];
+const TRACK_COM={trade:'cloth',politics:'coin',science:'paper'};
+const TRACK_ES={trade:'Comercio',politics:'Política',science:'Ciencia'};
+const TRACK_L3={trade:'Casa de comercio: mercancías 2:1 con el banco',politics:'Fortaleza: puedes tener caballeros poderosos',science:'Acueducto: si una tirada no te da nada, eliges 1 recurso'};
+const EVENT_ES={ship:'Barco bárbaro',trade:'Puerta amarilla',politics:'Puerta azul',science:'Puerta verde'};
+const COST={road:{wood:1,brick:1},ship:{wood:1,sheep:1},settlement:{wood:1,brick:1,sheep:1,wheat:1},city:{wheat:2,ore:3},dev:{sheep:1,wheat:1,ore:1},
+  knight:{sheep:1,ore:1},promote:{sheep:1,ore:1},activate:{wheat:1},wall:{brick:2}};
+const LIMIT={settlement:5,city:4,road:15,ship:15};
+const MODES={
+  base:{name:'Clásico',desc:'3–4 jugadores · isla de 19 losetas',min:2,max:4,target:10,bank:19},
+  grande:{name:'Gran isla',desc:'5–6 jugadores · 30 losetas, 11 puertos',min:3,max:6,target:10,bank:24},
+  mar:{name:'Navegantes',desc:'2–4 jugadores · barcos, islas y oro',min:2,max:4,target:13,bank:19,ships:true}
+};
+const targetOf=S=>MODES[S.mode].target+(S.ck?3:0);
+const COLORS=[{c:'#d63a2a',n:'Rojo'},{c:'#2d68d1',n:'Azul'},{c:'#ec8a17',n:'Naranja'},{c:'#f4f1e8',n:'Blanco'},{c:'#2b9a55',n:'Verde'},{c:'#7b4f9e',n:'Morado'}];
+const DEV_ES={knight:'Caballero',vp:'Punto de victoria',road:'Construcción de caminos',plenty:'Año de abundancia',mono:'Monopolio'};
+const DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+/* progress cards: color, count, name, short rule, what the play needs */
+const PROG={
+  alchemist:{c:'science',n:2,es:'Alquimista',d:'Antes de tirar, eliges el valor de los dos dados de producción.',need:'dice'},
+  inventor:{c:'science',n:2,es:'Inventor',d:'Intercambia los números de dos losetas (no 2, 12, 6 ni 8).',need:'hex2'},
+  crane:{c:'science',n:2,es:'Grúa',d:'Tu próxima mejora de ciudad este turno cuesta 1 mercancía menos.'},
+  roadb:{c:'science',n:2,es:'Construcción de caminos',d:'Construye 2 caminos o barcos gratis.'},
+  engineer:{c:'science',n:1,es:'Ingeniero',d:'Construye una muralla gratis.'},
+  irrigation:{c:'science',n:2,es:'Irrigación',d:'Recibe 2 Trigo por cada campo junto a tus construcciones.'},
+  medicine:{c:'science',n:2,es:'Medicina',d:'Tu próxima ciudad este turno cuesta 2 Mineral + 1 Trigo.'},
+  mining:{c:'science',n:2,es:'Minería',d:'Recibe 2 Mineral por cada montaña junto a tus construcciones.'},
+  smith:{c:'science',n:2,es:'Herrero',d:'Promueve hasta 2 caballeros gratis.'},
+  printer:{c:'science',n:1,es:'Imprenta',d:'+1 punto de victoria.',vp:true},
+  bishop:{c:'politics',n:2,es:'Obispo',d:'Mueve al ladrón y roba 1 carta a cada jugador junto a esa loseta.'},
+  constitution:{c:'politics',n:1,es:'Constitución',d:'+1 punto de victoria.',vp:true},
+  deserter:{c:'politics',n:2,es:'Desertor',d:'Un rival quita su caballero más débil; tú colocas uno igual gratis.',need:'player'},
+  diplomat:{c:'politics',n:2,es:'Diplomático',d:'Quita un camino abierto de cualquier jugador.',need:'edge'},
+  intrigue:{c:'politics',n:2,es:'Intriga',d:'Desplaza un caballero rival que toque tus caminos.',need:'knight'},
+  saboteur:{c:'politics',n:2,es:'Saboteador',d:'Quien tenga tantos o más puntos que tú descarta la mitad de su mano.'},
+  spy:{c:'politics',n:3,es:'Espía',d:'Roba una carta de progreso a un rival.',need:'player'},
+  warlord:{c:'politics',n:2,es:'Señor de la guerra',d:'Activa gratis todos tus caballeros.'},
+  wedding:{c:'politics',n:2,es:'Boda',d:'Cada rival con más puntos te da 2 cartas.'},
+  harbor:{c:'trade',n:2,es:'Puerto comercial',d:'Cada rival te da 1 mercancía a cambio de 1 recurso tuyo.'},
+  mmerchant:{c:'trade',n:2,es:'Mercader maestro',d:'Toma 2 cartas de un rival con más puntos.',need:'player'},
+  merchant:{c:'trade',n:6,es:'Mercader',d:'Pon al mercader en una loseta junto a ti: +1 punto y 2:1 de ese recurso.',need:'hex'},
+  fleet:{c:'trade',n:2,es:'Flota mercante',d:'Este turno cambias 2:1 un recurso o mercancía que elijas.',need:'card'},
+  resmono:{c:'trade',n:4,es:'Monopolio de recursos',d:'Cada rival te da hasta 2 de un recurso.',need:'res'},
+  trademono:{c:'trade',n:2,es:'Monopolio comercial',d:'Cada rival te da 1 de una mercancía.',need:'com'}
+};
+const KNAME=['','básico','fuerte','poderoso'];
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const hexDist=(q,r)=>Math.max(Math.abs(q),Math.abs(r),Math.abs(-q-r));
+const tally=o=>Object.entries(o).flatMap(([k,n])=>Array(n).fill(k));
+
+const BCACHE={};
+function board(S){const k=S.mode+':'+S.seed;return BCACHE[k]||(BCACHE[k]=genBoard(S.mode,S.seed))}
+/* number tokens can be swapped by the Inventor, so read numbers through this */
+const numOf=(S,B,h)=>S.nums&&S.nums[h]!=null?S.nums[h]:B.hexes[h].num;
+
+function genBoard(mode,seed){
+  const rnd=mulberry32(seed);
+  const sh=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+  const key=(q,r)=>q+','+r;
+  const land=[];
+  if(mode==='grande'){for(let r=-3;r<=3;r++)for(let q=Math.max(-3,-3-r)+1;q<=Math.min(3,3-r);q++)land.push({q,r,isl:0})}
+  else{for(let q=-2;q<=2;q++)for(let r=-2;r<=2;r++)if(hexDist(q,r)<=2)land.push({q,r,isl:0})}
+  if(mode==='mar'){[[[4,-4],[3,-4]],[[4,0],[4,-1]],[[-4,4],[-3,4]],[[-4,0],[-4,1]],[[0,4],[1,3]]].forEach((g,i)=>g.forEach(([q,r])=>land.push({q,r,isl:i+1})))}
+  const L=new Set(land.map(h=>key(h.q,h.r)));
+  const sea=[];
+  if(mode==='mar'){for(let q=-4;q<=4;q++)for(let r=-4;r<=4;r++)if(hexDist(q,r)<=4&&!L.has(key(q,r)))sea.push({q,r})}
+  else{const seen=new Set();land.forEach(h=>DIRS.forEach(([dq,dr])=>{const k=key(h.q+dq,h.r+dr);if(!L.has(k)&&!seen.has(k)){seen.add(k);sea.push({q:h.q+dq,r:h.r+dr})}}))}
+  const mainT=sh(mode==='grande'?tally({wood:6,brick:5,sheep:6,wheat:6,ore:5,desert:2}):tally({wood:4,brick:3,sheep:4,wheat:4,ore:3,desert:1}));
+  const islT=sh(tally({gold:2,wood:2,brick:2,sheep:1,wheat:1,ore:2}));
+  const hexes=[];
+  land.forEach(h=>hexes.push({q:h.q,r:h.r,isl:h.isl,type:h.isl===0?mainT.pop():islT.pop()}));
+  sea.forEach(h=>hexes.push({q:h.q,r:h.r,isl:-1,type:'sea'}));
+  let nums=mode==='grande'?[2,2,3,3,3,4,4,4,5,5,5,6,6,6,8,8,8,9,9,9,10,10,10,11,11,11,12,12]:[2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12];
+  if(mode==='mar')nums=nums.concat([2,3,4,5,6,8,9,10,11,12]);
+  const prod=hexes.filter(h=>h.type!=='sea'&&h.type!=='desert');
+  const idx=new Map(hexes.map((h,i)=>[key(h.q,h.r),i]));
+  const hot=n=>n===6||n===8;
+  for(let t=0;t<1500;t++){
+    sh(nums);prod.forEach((h,i)=>h.num=nums[i]);
+    let ok=true;
+    for(const h of prod){if(!hot(h.num))continue;for(const[dq,dr]of DIRS){const j=idx.get(key(h.q+dq,h.r+dr));if(j!=null&&hot(hexes[j].num)){ok=false;break}}if(!ok)break}
+    if(ok)break;
+  }
+  const R3=Math.sqrt(3),verts=[],vmap=new Map(),edges=[],emap=new Map();
+  const vk=(x,y)=>Math.round(x*1000)+'_'+Math.round(y*1000);
+  hexes.forEach((h,hi)=>{
+    h.x=R3*(h.q+h.r/2);h.y=1.5*h.r;h.v=[];
+    const include=mode==='mar'||h.type!=='sea';
+    const cs=[];
+    for(let i=0;i<6;i++){
+      const an=Math.PI/180*(60*i-30),x=h.x+Math.cos(an),y=h.y+Math.sin(an),k=vk(x,y);
+      let vi=vmap.get(k);
+      if(vi==null){if(!include){cs.push(null);continue}vi=verts.length;vmap.set(k,vi);verts.push({x,y,h:[],adj:[],e:[]})}
+      cs.push(vi);
+      if(!verts[vi].h.includes(hi))verts[vi].h.push(hi);
+      h.v.push(vi);
+    }
+    for(let i=0;i<6;i++){
+      const a=cs[i],b=cs[(i+1)%6];if(a==null||b==null)continue;
+      const lo=Math.min(a,b),hi2=Math.max(a,b),k=lo+'-'+hi2;
+      let ei=emap.get(k);
+      if(ei==null){if(!include)continue;ei=edges.length;emap.set(k,ei);edges.push({a:lo,b:hi2,h:[]});verts[a].adj.push(b);verts[b].adj.push(a);verts[a].e.push(ei);verts[b].e.push(ei)}
+      edges[ei].h.push(hi);
+    }
+  });
+  verts.forEach(v=>{const lh=v.h.filter(i=>hexes[i].type!=='sea');v.land=lh.length>0;v.isl=lh.length?hexes[lh[0]].isl:-1});
+  edges.forEach(e=>{e.land=e.h.some(i=>hexes[i].type!=='sea');e.sea=e.h.length<2||e.h.some(i=>hexes[i].type==='sea');e.x=(verts[e.a].x+verts[e.b].x)/2;e.y=(verts[e.a].y+verts[e.b].y)/2});
+  const mainH=hexes.filter(h=>h.isl===0);
+  const cx=mainH.reduce((s,h)=>s+h.x,0)/mainH.length,cy=mainH.reduce((s,h)=>s+h.y,0)/mainH.length;
+  const coast=edges.map((e,i)=>i).filter(i=>{const e=edges[i];return e.h.some(j=>hexes[j].isl===0)&&e.h.some(j=>hexes[j].type==='sea')});
+  coast.sort((a,b)=>Math.atan2(edges[a].y-cy,edges[a].x-cx)-Math.atan2(edges[b].y-cy,edges[b].x-cx));
+  const NP=mode==='grande'?11:9;
+  const ptypes=sh(mode==='grande'?['any','any','any','any','any','wood','brick','sheep','wheat','ore','sheep']:['any','any','any','any','wood','brick','sheep','wheat','ore']);
+  const off=rnd()*coast.length/NP,ports=[];
+  for(let i=0;i<NP;i++){
+    const ei=coast[Math.floor(off+i*coast.length/NP)%coast.length],e=edges[ei];
+    const sh2=hexes[e.h.find(j=>hexes[j].type==='sea')];
+    const type=ptypes[i];
+    ports.push({e:ei,type,x:e.x+(sh2.x-e.x)*.62,y:e.y+(sh2.y-e.y)*.62});
+    verts[e.a].port=type;verts[e.b].port=type;
+  }
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  hexes.forEach(h=>{x0=Math.min(x0,h.x-R3/2);x1=Math.max(x1,h.x+R3/2);y0=Math.min(y0,h.y-1);y1=Math.max(y1,h.y+1)});
+  const robber=hexes.findIndex(h=>h.type==='desert');
+  return{hexes,verts,edges,ports,robber,bounds:{x0,x1,y0,y1}};
+}
+
+/* ---- helpers ---- */
+const keysOf=S=>S&&S.ck?ALL:RES;
+const sumRes=r=>ALL.reduce((s,k)=>s+((r&&r[k])||0),0);
+const hasRes=(r,c)=>Object.entries(c).every(([k,n])=>(r[k]||0)>=n);
+function countPieces(S,pi){
+  const c={settlement:0,city:0,road:0,ship:0,wall:0,k1:0,k2:0,k3:0};
+  for(const b of Object.values(S.build))if(b.p===pi){c[b.t]++;if(b.wall)c.wall++}
+  for(const l of Object.values(S.lines))if(l.p===pi)c[l.t]++;
+  for(const k of Object.values(S.knights||{}))if(k.p===pi)c['k'+k.lvl]++;
+  return c;
+}
+function vpOf(S,pi,full){
+  const c=countPieces(S,pi),P=S.players[pi];
+  let v=c.settlement+2*c.city;
+  if(S.longest===pi)v+=2;
+  if(S.army===pi)v+=2;
+  v+=2*((P.islands||[]).length);
+  if(S.ck){
+    for(const b of Object.values(S.build))if(b.p===pi&&b.metro)v+=2;
+    v+=(P.vpc||[]).length;
+    if(S.merchant&&S.merchant.p===pi)v+=1;
+  }
+  if(full)v+=[...(P.dev||[]),...(P.newDev||[])].filter(d=>d==='vp').length;
+  return v;
+}
+const handLimit=(S,pi)=>7+(S.ck?2*countPieces(S,pi).wall:0);
+const enemyAt=(S,v,pi)=>{const b=S.build[v];if(b&&b.p!==pi)return true;const k=S.knights&&S.knights[v];return !!(k&&k.p!==pi)};
+function canSettle(S,B,v,pi,setup){
+  const V=B.verts[v];
+  if(!V||!V.land||S.build[v]||(S.knights&&S.knights[v]))return false;
+  if(V.adj.some(a=>S.build[a]))return false;
+  if(setup)return S.mode!=='mar'||V.isl===0;
+  return V.e.some(e=>S.lines[e]&&S.lines[e].p===pi);
+}
+function canLine(S,B,e,pi,kind,setupV){
+  const E=B.edges[e];
+  if(!E||S.lines[e])return false;
+  if(kind==='road'&&!E.land)return false;
+  if(kind==='ship'&&(!MODES[S.mode].ships||!E.sea))return false;
+  if(setupV!=null)return E.a===setupV||E.b===setupV;
+  for(const v of[E.a,E.b]){
+    const b=S.build[v];
+    if(b&&b.p===pi)return true;
+    if(enemyAt(S,v,pi))continue;
+    if(B.verts[v].e.some(o=>o!==e&&S.lines[o]&&S.lines[o].p===pi&&S.lines[o].t===kind))return true;
+  }
+  return false;
+}
+function canCity(S,v,pi){const b=S.build[v];return !!(b&&b.p===pi&&b.t==='settlement')}
+function ratioFor(S,B,pi,res){
+  let r=4;
+  const isCom=COM.includes(res);
+  for(const[v,b]of Object.entries(S.build)){if(b.p!==pi)continue;const p=B.verts[v].port;if(p==='any')r=Math.min(r,3);else if(p===res)r=2}
+  if(S.ck){
+    if(isCom&&S.players[pi].imp&&S.players[pi].imp.trade>=3)r=2;
+    if(S.merchant&&S.merchant.p===pi&&B.hexes[S.merchant.h].type===res)r=2;
+    if(S.fleet&&S.fleet.p===pi&&S.fleet.res===res)r=2;
+  }
+  return r;
+}
+function longestFor(S,B,pi){
+  const at={};let any=false;
+  for(const[e,l]of Object.entries(S.lines)){if(l.p!==pi)continue;any=true;const E=B.edges[e];(at[E.a]=at[E.a]||[]).push([+e,l.t]);(at[E.b]=at[E.b]||[]).push([+e,l.t])}
+  if(!any)return 0;
+  const used=new Set();let best=0;
+  const dfs=(v,len,lt)=>{
+    if(len>best)best=len;
+    if(len>0&&enemyAt(S,v,pi))return;
+    const b=S.build[v],own=b&&b.p===pi;
+    for(const[e,t]of at[v]||[]){
+      if(used.has(e))continue;
+      if(lt&&t!==lt&&!own)continue;
+      used.add(e);const E=B.edges[e];dfs(E.a===v?E.b:E.a,len+1,t);used.delete(e);
+    }
+  };
+  Object.keys(at).forEach(v=>dfs(+v,0,null));
+  return best;
+}
+function recalcLongest(S,B,log){
+  const L=S.players.map((p,i)=>longestFor(S,B,i));S.roadLen=L;
+  const h=S.longest,max=Math.max(...L);
+  let n;
+  if(max<5)n=null;
+  else if(h!=null&&L[h]===max)n=h;
+  else{const tops=L.map((l,i)=>l===max?i:-1).filter(i=>i>=0);n=tops.length===1?tops[0]:null}
+  if(n!==h){S.longest=n;if(n!=null)log(`${S.players[n].name} tiene la ruta más larga (${max})`);else if(h!=null)log(`Nadie tiene la ruta más larga ahora`)}
+}
+/* vertices a player's knight may stand on: empty, touching one of their lines */
+function knightSpot(S,B,v,pi){
+  const V=B.verts[v];
+  if(!V||!V.land||S.build[v]||S.knights[v])return false;
+  return V.e.some(e=>S.lines[e]&&S.lines[e].p===pi);
+}
+/* vertices reachable from v along the player's own lines, not passing other players' pieces */
+function reachable(S,B,v,pi){
+  const seen=new Set([v]),q=[v],out=[];
+  while(q.length){
+    const x=q.shift();
+    for(const e of B.verts[x].e){
+      if(!S.lines[e]||S.lines[e].p!==pi)continue;
+      const E=B.edges[e],y=E.a===x?E.b:E.a;
+      if(seen.has(y))continue;seen.add(y);
+      out.push(y);
+      if(!enemyAt(S,y,pi)&&!(S.build[y]))q.push(y);
+      else if(S.build[y]&&S.build[y].p===pi)q.push(y);
+    }
+  }
+  return out;
+}
+function knightMoves(S,B,v,pi){
+  const k=S.knights[v];
+  return reachable(S,B,v,pi).filter(y=>{
+    if(S.build[y])return false;
+    const o=S.knights[y];
+    if(!o)return B.verts[y].land;
+    return o.p!==pi&&o.lvl<k.lvl;
+  });
+}
+function knightCanAct(S,v,pi){const k=S.knights[v];return !!(k&&k.p===pi&&k.active&&k.actT!==S.turnNo)}
+function openRoads(S,B){
+  /* a road with at least one end that has no other piece of the same owner */
+  return Object.keys(S.lines).map(Number).filter(e=>{
+    const l=S.lines[e];if(l.t!=='road')return false;const E=B.edges[e];
+    return[E.a,E.b].some(v=>{const b=S.build[v];if(b&&b.p===l.p)return false;return !B.verts[v].e.some(o=>o!==e&&S.lines[o]&&S.lines[o].p===l.p)});
+  });
+}
+function newState(mode,me,name,ck,table){
+  const code=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random()*24)]).join('');
+  return{code,mode,ck:!!ck,table:!!table,seed:Math.floor(Math.random()*2**31),phase:'lobby',host:me,pids:table?[]:[me],players:table?[]:[{id:me,name,color:0}],build:{},lines:{},knights:{},log:[],v:1,created:Date.now()};
+}
+
+/* ---- the rules: every action goes through here ---- */
+function act(S0,me,a,rand){
+  rand=rand||Math.random;
+  const S=JSON.parse(JSON.stringify(S0));
+  S.knights=S.knights||{};
+  const B=board(S),M=MODES[S.mode],K=keysOf(S);
+  const err=m=>{throw new Error(m)};
+  const log=t=>{S.log.push(t);if(S.log.length>40)S.log.shift()};
+  const shuffle=arr=>{for(let i=arr.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}return arr};
+  const pi=S.players.findIndex(p=>p.id===me);
+  if(a.t==='join'){
+    if(S.phase!=='lobby')err('La partida ya empezó.');
+    if(pi>=0)return S;
+    if(S.players.length>=M.max)err('La partida está llena.');
+    const used=S.players.map(p=>p.color);
+    S.players.push({id:me,name:(a.name||'Jugador').slice(0,16),color:[0,1,2,3,4,5].find(c=>!used.includes(c))});
+    S.pids.push(me);log(`${a.name} entró a la partida`);S.v++;return S;
+  }
+  if(pi<0&&!(a.t==='start'&&S.host===me))err('No estás en esta partida.');
+  const P=S.players[pi],isCur=S.cur===pi,n=S.players.length;
+  const pay=c=>{if(!hasRes(P.res,c))err('No te alcanzan los recursos.');for(const[k,q]of Object.entries(c)){P.res[k]-=q;S.bank[k]+=q}};
+  const needCur=()=>{if(!isCur)err('No es tu turno.')};
+  const needStep=(...s)=>{if(!s.includes(S.step))err('Ahora no puedes hacer eso.')};
+  const needCK=()=>{if(!S.ck)err('Esto es de Ciudades y caballeros.')};
+  const give=(p,k,q)=>{const g=Math.max(0,Math.min(q,S.bank[k]));p.res[k]+=g;S.bank[k]-=g;return g};
+  const takeRandom=(from,to,q,keys)=>{let got=0;for(let i=0;i<q;i++){const pool=(keys||K).flatMap(k=>Array(from.res[k]).fill(k));if(!pool.length)break;const k=pool[Math.floor(rand()*pool.length)];from.res[k]--;if(to)to.res[k]++;else S.bank[k]++;got++}return got};
+  const afterSettle=v=>{
+    const V=B.verts[v];
+    if(S.mode==='mar'&&V.isl>0&&!(P.islands||[]).includes(V.isl)){P.islands=[...(P.islands||[]),V.isl];log(`${P.name} llegó a una isla nueva: +2 puntos`)}
+  };
+  const mainOrRoll=()=>needStep('main');
+  function drawProg(i,color){
+    const Q=S.players[i],deck=S.pdeck[color];
+    if(!deck.length){log(`Ya no hay cartas de ${TRACK_ES[color]}`);return}
+    if(Q.prog.length>=4){log(`${Q.name} ya tiene 4 cartas de progreso y no roba`);return}
+    const c=deck.pop();
+    if(PROG[c].vp){Q.vpc.push(c);log(`${Q.name} sacó ${PROG[c].es}: +1 punto`)}
+    else{Q.prog.push(c);log(`${Q.name} roba una carta de ${TRACK_ES[color]}`)}
+  }
+  function displace(v){
+    /* the knight on v is pushed out; its owner moves it to the nearest free spot on their roads or loses it */
+    const k=S.knights[v];delete S.knights[v];
+    const spots=reachable(S,B,v,k.p).filter(y=>!S.build[y]&&!S.knights[y]&&B.verts[y].land);
+    if(spots.length){S.knights[spots[0]]=k;log(`El caballero de ${S.players[k.p].name} retrocede`)}
+    else log(`El caballero de ${S.players[k.p].name} sale del tablero`);
+  }
+  function barbarians(){
+    const cities=Object.values(S.build).filter(b=>b.t==='city').length;
+    const str=S.players.map((p,i)=>Object.values(S.knights).filter(k=>k.p===i&&k.active).reduce((s,k)=>s+k.lvl,0));
+    const def=str.reduce((s,x)=>s+x,0);
+    log(`¡Llegan los bárbaros! Fuerza ${cities} contra defensa ${def}`);
+    if(cities>def){
+      const vul=S.players.map((p,i)=>i).filter(i=>Object.values(S.build).some(b=>b.p===i&&b.t==='city'&&!b.metro));
+      if(vul.length){
+        const min=Math.min(...vul.map(i=>str[i]));
+        vul.filter(i=>str[i]===min).forEach(i=>{
+          const mine=Object.entries(S.build).filter(([v,b])=>b.p===i&&b.t==='city'&&!b.metro);
+          const pick=mine.find(([v,b])=>!b.wall)||mine[0];
+          const b=S.build[pick[0]];
+          if(b.wall){b.wall=false;S.bank.brick+=0}
+          b.t='settlement';log(`Los bárbaros saquean una ciudad de ${S.players[i].name}`);
+        });
+      }else log('Los bárbaros ganan, pero nadie tiene ciudades que saquear');
+    }else{
+      const max=Math.max(...str);
+      if(max>0){
+        const tops=str.map((x,i)=>x===max?i:-1).filter(i=>i>=0);
+        if(tops.length===1){S.players[tops[0]].vpc.push('defender');log(`${S.players[tops[0]].name} es Defensor de la isla: +1 punto`)}
+        else tops.forEach(i=>drawProg(i,TRACKS[Math.floor(rand()*3)]));
+      }
+      log('La isla resiste a los bárbaros');
+    }
+    Object.values(S.knights).forEach(k=>k.active=false);
+    S.barb=0;
+    if(!S.attacked){S.attacked=true;log('El ladrón ya puede moverse')}
+  }
+  function doRoll(d1,d2){
+    S.dice=[d1,d2];const t=d1+d2;
+    let ev=null;
+    if(S.ck){
+      ev=['ship','ship','ship','trade','politics','science'][Math.floor(rand()*6)];S.event=ev;
+      log(`${P.name} tiró ${t} · ${EVENT_ES[ev]}`);
+      if(ev==='ship'){S.barb=(S.barb||0)+1;if(S.barb>=7)barbarians()}
+      else{for(let j=0;j<n;j++){const i=(S.cur+j)%n,lv=S.players[i].imp[ev];if(lv>=1&&d2<=lv+1)drawProg(i,ev)}}
+    }else log(`${P.name} tiró ${t}`);
+    if(t===7){
+      S.discards={};
+      S.players.forEach((p,i)=>{const c=sumRes(p.res);if(c>handLimit(S,i))S.discards[i]=Math.floor(c/2)});
+      const robberLive=!S.ck||S.attacked;
+      S.afterRobber='main';
+      S.step=Object.keys(S.discards).length?'discard':(robberLive?'robber':'main');
+      if(S.step==='discard')log('Quien tenga demasiadas cartas descarta la mitad');
+      else if(!robberLive)log('El ladrón no se mueve hasta el primer ataque bárbaro');
+      return;
+    }
+    const dem={},got=new Set();S.gold={};
+    B.hexes.forEach((H,hi)=>{
+      if(numOf(S,B,hi)!==t||hi===S.robber)return;
+      H.v.forEach(v=>{const b=S.build[v];if(!b)return;
+        const add=(k,q)=>{(dem[k]=dem[k]||{})[b.p]=((dem[k]||{})[b.p]||0)+q};
+        if(H.type==='gold'){S.gold[b.p]=(S.gold[b.p]||0)+(b.t==='city'?2:1);return}
+        if(b.t==='settlement')add(H.type,1);
+        else if(S.ck&&COMOF[H.type]){add(H.type,1);add(COMOF[H.type],1)}
+        else add(H.type,2);
+      });
+    });
+    const lines=[];
+    for(const[k,per]of Object.entries(dem)){
+      const tot=Object.values(per).reduce((s,x)=>s+x,0),who=Object.keys(per);
+      if(tot>S.bank[k]&&who.length>1){lines.push(`no hay suficiente ${RES_ES[k]} en el banco`);continue}
+      who.forEach(w=>{const g=give(S.players[w],k,per[w]);if(g){got.add(+w);lines.push(`${S.players[w].name} +${g} ${RES_ES[k]}`)}});
+    }
+    Object.keys(S.gold).forEach(w=>got.add(+w));
+    if(lines.length)log(lines.join(' · '));
+    if(S.ck)S.players.forEach((p,i)=>{if(p.imp.science>=3&&!got.has(i)){S.gold[i]=(S.gold[i]||0)+1;log(`${p.name} usa su acueducto`)}});
+    if(Object.keys(S.gold).length){S.step='gold';log('Hay recursos por elegir (oro o acueducto)')}else S.step='main';
+  }
+  switch(a.t){
+    case'leave':{
+      if(S.phase!=='lobby')err('La partida ya empezó.');
+      S.players.splice(pi,1);S.pids=S.players.map(p=>p.id);
+      if(S.host===me&&S.players.length&&!S.table)S.host=S.players[0].id;
+      log(`${P.name} salió`);break;
+    }
+    case'start':{
+      if(S.phase!=='lobby')err('Ya empezó.');
+      if(S.host!==me)err('Solo quien creó la partida puede empezar.');
+      if(n<M.min)err(`Se necesitan al menos ${M.min} jugadores.`);
+      shuffle(S.players);
+      S.players.forEach(p=>{p.res=Object.fromEntries(K.map(k=>[k,0]));p.dev=[];p.newDev=[];p.knights=0;p.islands=[];
+        if(S.ck){p.imp={trade:0,politics:0,science:0};p.prog=[];p.vpc=[]}});
+      S.pids=S.players.map(p=>p.id);
+      S.bank=Object.fromEntries(K.map(k=>[k,COM.includes(k)?(S.mode==='grande'?16:12):M.bank]));
+      if(S.ck){
+        S.deck=[];S.barb=0;S.attacked=false;S.metro={trade:null,politics:null,science:null};S.merchant=null;S.event=null;
+        S.pdeck={};TRACKS.forEach(c=>S.pdeck[c]=shuffle(Object.entries(PROG).filter(([k,d])=>d.c===c).flatMap(([k,d])=>Array(d.n).fill(k))));
+      }else{
+        S.deck=shuffle(tally(S.mode==='grande'?{knight:20,vp:5,road:3,plenty:3,mono:3}:{knight:14,vp:5,road:2,plenty:2,mono:2}));
+      }
+      S.knights={};S.nums={};
+      S.robber=B.robber;S.longest=null;S.army=null;S.roadLen=S.players.map(()=>0);
+      S.order=[...Array(n).keys(),...[...Array(n).keys()].reverse()];S.si=0;S.cur=S.order[0];S.step='setS';
+      S.phase='setup';S.turnNo=0;S.dice=null;S.offer=null;S.devPlayed=false;S.free=0;S.tf={};
+      log(`¡Empieza la partida! ${S.players[S.cur].name} coloca primero`);break;
+    }
+    case'setS':{
+      needCur();if(S.phase!=='setup'||S.step!=='setS')err('Ahora no.');
+      if(!canSettle(S,B,a.v,pi,true))err('Ahí no se puede construir.');
+      const second=S.si>=n,asCity=second&&S.ck;
+      S.build[a.v]={p:pi,t:asCity?'city':'settlement'};S.lastV=a.v;S.step='setR';
+      if(second){
+        const got=[];
+        B.verts[a.v].h.forEach(h=>{const H=B.hexes[h];if(RES.includes(H.type)){give(P,H.type,1);got.push(RES_ES[H.type])}});
+        if(got.length)log(`${P.name} recibe ${got.join(', ')}`);
+      }
+      recalcLongest(S,B,log);break;
+    }
+    case'setR':{
+      needCur();if(S.phase!=='setup'||S.step!=='setR')err('Ahora no.');
+      const kind=a.kind||'road';
+      if(!canLine(S,B,a.e,pi,kind,S.lastV))err('El camino debe salir de lo que acabas de poner.');
+      S.lines[a.e]={p:pi,t:kind};S.si++;
+      if(S.si>=S.order.length){S.phase='play';S.cur=0;S.step='roll';S.turnNo=1;log(`Fin de la colocación. Turno de ${S.players[0].name}`)}
+      else{S.cur=S.order[S.si];S.step='setS'}
+      break;
+    }
+    case'roll':{
+      needCur();needStep('roll');
+      doRoll(1+Math.floor(rand()*6),1+Math.floor(rand()*6));
+      break;
+    }
+    case'discard':{
+      if(S.step!=='discard'||S.discards[pi]==null)err('No tienes que descartar.');
+      const need=S.discards[pi];
+      if(sumRes(a.res)!==need)err(`Debes descartar exactamente ${need}.`);
+      if(!hasRes(P.res,a.res))err('No tienes esas cartas.');
+      for(const[k,q]of Object.entries(a.res)){P.res[k]-=q;S.bank[k]+=q}
+      delete S.discards[pi];log(`${P.name} descartó ${need}`);
+      if(!Object.keys(S.discards).length)S.step=(!S.ck||S.attacked)?'robber':'main';
+      break;
+    }
+    case'gold':{
+      if(S.step!=='gold'||!S.gold[pi])err('No tienes recursos por elegir.');
+      const need=S.gold[pi],tot=sumRes(a.res);
+      const avail=RES.reduce((s,k)=>s+S.bank[k],0);
+      if(Object.keys(a.res).some(k=>!RES.includes(k)))err('Solo puedes elegir recursos.');
+      if(tot!==Math.min(need,avail))err(`Elige ${need} recurso(s).`);
+      for(const[k,q]of Object.entries(a.res)){if(S.bank[k]<q)err('El banco no tiene tanto de eso.');P.res[k]+=q;S.bank[k]-=q}
+      delete S.gold[pi];log(`${P.name} eligió sus recursos`);
+      if(!Object.keys(S.gold).length)S.step='main';
+      break;
+    }
+    case'robber':{
+      needCur();needStep('robber');
+      const H=B.hexes[a.h];
+      if(!H||H.type==='sea')err('El ladrón va en una loseta de tierra.');
+      if(a.h===S.robber)err('Tienes que mover el ladrón a otra loseta.');
+      S.robber=a.h;
+      const vict=[...new Set(H.v.map(v=>S.build[v]).filter(b=>b&&b.p!==pi&&sumRes(S.players[b.p].res)>0).map(b=>b.p))];
+      log(`${P.name} movió el ladrón`);
+      if(S.bishop){S.bishop=false;vict.forEach(t=>steal(t));S.step=S.afterRobber;break}
+      if(vict.length===0)S.step=S.afterRobber;
+      else if(vict.length===1){steal(vict[0]);S.step=S.afterRobber}
+      else{S.victims=vict;S.step='steal'}
+      break;
+    }
+    case'steal':{
+      needCur();needStep('steal');
+      if(!S.victims.includes(a.p))err('A esa persona no se le puede robar.');
+      steal(a.p);S.step=S.afterRobber;S.victims=null;break;
+    }
+    case'build':{
+      needCur();
+      const k=a.kind;
+      if(S.phase!=='play')err('Ahora no.');
+      const free=(k==='road'||k==='ship')&&S.free>0;
+      if(free)needStep('main','roll');else needStep('main');
+      const c=countPieces(S,pi);
+      if(c[k]>=LIMIT[k])err(`Ya usaste todas tus piezas de ${k==='city'?'ciudad':k==='settlement'?'poblado':k==='ship'?'barco':'camino'}.`);
+      if(k==='road'||k==='ship'){
+        if(!canLine(S,B,a.e,pi,k,null))err('Ahí no se puede construir.');
+        if(free)S.free--;else pay(COST[k]);
+        S.lines[a.e]={p:pi,t:k};log(`${P.name} construyó un ${k==='ship'?'barco':'camino'}`);
+      }else if(k==='settlement'){
+        if(!canSettle(S,B,a.v,pi,false))err('Ahí no se puede construir un poblado.');
+        pay(COST.settlement);S.build[a.v]={p:pi,t:'settlement'};log(`${P.name} construyó un poblado`);afterSettle(a.v);
+      }else if(k==='city'){
+        if(!canCity(S,a.v,pi))err('Solo puedes mejorar tus propios poblados.');
+        if(S.tf.medicine){pay({ore:2,wheat:1});S.tf.medicine=false}else pay(COST.city);
+        S.build[a.v].t='city';log(`${P.name} construyó una ciudad`);
+        if(S.ck)TRACKS.forEach(tr=>{if(S.metro[tr]==null&&P.imp[tr]>=4)claimMetro(tr)});
+      }else err('?');
+      recalcLongest(S,B,log);break;
+    }
+    case'buyDev':{
+      needCur();needStep('main');
+      if(S.ck)err('En Ciudades y caballeros no hay cartas de desarrollo.');
+      if(!S.deck.length)err('Ya no quedan cartas de desarrollo.');
+      pay(COST.dev);P.newDev.push(S.deck.pop());log(`${P.name} compró una carta de desarrollo`);break;
+    }
+    case'play':{
+      needCur();
+      const card=a.card;
+      if(S.phase!=='play')err('Ahora no.');
+      if(card==='vp')err('Los puntos de victoria cuentan solos.');
+      if(S.devPlayed)err('Solo puedes jugar una carta de desarrollo por turno.');
+      const i=P.dev.indexOf(card);
+      if(i<0)err('No tienes esa carta (las recién compradas se juegan el siguiente turno).');
+      if(card==='knight')needStep('roll','main');else needStep('main');
+      if(card==='plenty'){
+        if(!a.res||a.res.length!==2)err('Elige dos recursos.');
+        const need={};a.res.forEach(k=>need[k]=(need[k]||0)+1);
+        for(const[k,q]of Object.entries(need))if(S.bank[k]<q)err('El banco no tiene suficiente.');
+      }
+      if(card==='mono'&&!RES.includes(a.res))err('Elige un recurso.');
+      P.dev.splice(i,1);S.devPlayed=true;
+      if(card==='knight'){
+        P.knights++;S.afterRobber=S.step;S.step='robber';log(`${P.name} jugó un Caballero`);
+        if(P.knights>=3&&(S.army==null||(S.army!==pi&&P.knights>S.players[S.army].knights))){S.army=pi;log(`${P.name} tiene el ejército más grande`)}
+      }else if(card==='road'){
+        const c=countPieces(S,pi);S.free=Math.min(2,(LIMIT.road-c.road)+(M.ships?LIMIT.ship-c.ship:0));log(`${P.name} jugó Construcción de caminos`);
+      }else if(card==='plenty'){
+        a.res.forEach(k=>give(P,k,1));log(`${P.name} jugó Año de abundancia`);
+      }else if(card==='mono'){
+        let tot=0;S.players.forEach((p,j)=>{if(j===pi)return;tot+=p.res[a.res];p.res[a.res]=0});P.res[a.res]+=tot;
+        log(`${P.name} jugó Monopolio de ${RES_ES[a.res]} y se llevó ${tot}`);
+      }
+      break;
+    }
+    /* ---------- Cities & Knights ---------- */
+    case'improve':{
+      needCK();needCur();needStep('main');
+      const tr=a.track;if(!TRACKS.includes(tr))err('?');
+      if(!Object.values(S.build).some(b=>b.p===pi&&b.t==='city'))err('Necesitas al menos una ciudad para mejorar.');
+      const lv=P.imp[tr];if(lv>=5)err('Ese camino ya está al máximo.');
+      let cost=lv+1;if(S.tf.crane){cost=Math.max(0,cost-1)}
+      pay({[TRACK_COM[tr]]:cost});if(S.tf.crane)S.tf.crane=false;
+      P.imp[tr]=lv+1;log(`${P.name} sube ${TRACK_ES[tr]} a nivel ${lv+1}`);
+      if(lv+1===3)log(`${P.name} gana ${TRACK_L3[tr].split(':')[0]}`);
+      if(lv+1>=4){
+        const h=S.metro[tr];
+        if(h==null)claimMetro(tr);
+        else if(h!==pi&&lv+1===5&&S.players[h].imp[tr]<5){
+          const v=Object.keys(S.build).find(v=>S.build[v].metro===tr);if(v)delete S.build[v].metro;S.metro[tr]=null;claimMetro(tr);
+        }
+      }
+      break;
+    }
+    case'knight':{
+      needCK();needCur();needStep('main');
+      const lvl=S.freeKnight||1,c=countPieces(S,pi);
+      if(c['k'+lvl]>=2)err(`Ya tienes 2 caballeros ${KNAME[lvl]}s.`);
+      if(!knightSpot(S,B,a.v,pi))err('El caballero va en una esquina libre junto a tus caminos.');
+      if(S.freeKnight)S.freeKnight=0;else pay(COST.knight);
+      S.knights[a.v]={p:pi,lvl,active:false,actT:-1,proT:S.turnNo};log(`${P.name} puso un caballero ${KNAME[lvl]}`);
+      recalcLongest(S,B,log);break;
+    }
+    case'activate':{
+      needCK();needCur();needStep('main');
+      const k=S.knights[a.v];if(!k||k.p!==pi)err('Ese caballero no es tuyo.');
+      if(k.active)err('Ya está activo.');
+      pay(COST.activate);k.active=true;k.actT=S.turnNo;log(`${P.name} activó un caballero`);break;
+    }
+    case'promote':{
+      needCK();needCur();needStep('main');
+      const k=S.knights[a.v];if(!k||k.p!==pi)err('Ese caballero no es tuyo.');
+      if(k.lvl>=3)err('Ya es poderoso.');
+      if(k.lvl===2&&P.imp.politics<3)err('Necesitas la Fortaleza (Política nivel 3) para caballeros poderosos.');
+      if(k.proT===S.turnNo)err('Ese caballero ya cambió este turno.');
+      if(countPieces(S,pi)['k'+(k.lvl+1)]>=2)err(`Ya tienes 2 caballeros ${KNAME[k.lvl+1]}s.`);
+      if(S.tf.smith>0)S.tf.smith--;else pay(COST.promote);
+      k.lvl++;k.proT=S.turnNo;log(`${P.name} promovió un caballero a ${KNAME[k.lvl]}`);break;
+    }
+    case'kmove':{
+      needCK();needCur();needStep('main');
+      if(!knightCanAct(S,a.v,pi))err('Ese caballero debe estar activo y no activado este turno.');
+      if(!knightMoves(S,B,a.v,pi).includes(a.to))err('No puede llegar ahí por tus caminos.');
+      const k=S.knights[a.v];
+      if(S.knights[a.to])displace(a.to);
+      delete S.knights[a.v];k.active=false;S.knights[a.to]=k;log(`${P.name} movió un caballero`);
+      recalcLongest(S,B,log);break;
+    }
+    case'kchase':{
+      needCK();needCur();needStep('main');
+      if(!S.attacked)err('El ladrón no se mueve hasta el primer ataque bárbaro.');
+      if(!knightCanAct(S,a.v,pi))err('Ese caballero debe estar activo y no activado este turno.');
+      if(!B.hexes[S.robber].v.includes(a.v))err('El caballero debe estar junto al ladrón.');
+      S.knights[a.v].active=false;S.afterRobber='main';S.step='robber';log(`${P.name} ahuyenta al ladrón con un caballero`);break;
+    }
+    case'wall':{
+      needCK();needCur();needStep('main');
+      const b=S.build[a.v];if(!b||b.p!==pi||b.t!=='city')err('Las murallas van en tus ciudades.');
+      if(b.wall)err('Esa ciudad ya tiene muralla.');
+      if(countPieces(S,pi).wall>=3)err('Solo puedes tener 3 murallas.');
+      if(S.tf.engineer)S.tf.engineer=false;else pay(COST.wall);
+      b.wall=true;log(`${P.name} construyó una muralla`);break;
+    }
+    case'prog':{
+      needCK();needCur();
+      const c=a.card,D=PROG[c],i=P.prog.indexOf(c);
+      if(i<0)err('No tienes esa carta.');
+      if(c==='alchemist')needStep('roll');else needStep('main');
+      const opp=S.players.map((p,j)=>j).filter(j=>j!==pi);
+      const myVP=vpOf(S,pi,false);
+      const remove=()=>{P.prog.splice(i,1);S.pdeck[D.c].unshift(c)};
+      switch(c){
+        case'alchemist':{const w=+a.w,r=+a.r;if(!(w>=1&&w<=6&&r>=1&&r<=6))err('Elige valores del 1 al 6.');remove();log(`${P.name} usa el Alquimista`);doRoll(w,r);break}
+        case'inventor':{
+          const[h1,h2]=a.hs||[];const ok=h=>{const x=numOf(S,B,h);return B.hexes[h]&&x&&![2,12,6,8].includes(x)};
+          if(h1===h2||!ok(h1)||!ok(h2))err('Elige dos losetas distintas sin 2, 12, 6 ni 8.');
+          const x1=numOf(S,B,h1),x2=numOf(S,B,h2);S.nums[h1]=x2;S.nums[h2]=x1;remove();log(`${P.name} usa el Inventor`);break}
+        case'crane':remove();S.tf.crane=true;log(`${P.name} usa la Grúa`);break;
+        case'roadb':{remove();const k=countPieces(S,pi);S.free=Math.min(2,(LIMIT.road-k.road)+(M.ships?LIMIT.ship-k.ship:0));log(`${P.name} usa Construcción de caminos`);break}
+        case'engineer':remove();S.tf.engineer=true;log(`${P.name} usa el Ingeniero`);break;
+        case'irrigation':case'mining':{
+          const type=c==='irrigation'?'wheat':'ore';
+          const hs=B.hexes.map((h,j)=>j).filter(j=>B.hexes[j].type===type&&B.hexes[j].v.some(v=>S.build[v]&&S.build[v].p===pi));
+          remove();const g=give(P,type,2*hs.length);log(`${P.name} usa ${D.es}: +${g} ${RES_ES[type]}`);break}
+        case'medicine':remove();S.tf.medicine=true;log(`${P.name} usa la Medicina`);break;
+        case'smith':remove();S.tf.smith=2;log(`${P.name} usa el Herrero`);break;
+        case'bishop':remove();S.bishop=true;S.afterRobber='main';S.step='robber';log(`${P.name} usa el Obispo`);break;
+        case'deserter':{
+          const t=a.p;if(!opp.includes(t))err('Elige a un rival.');
+          const ks=Object.entries(S.knights).filter(([v,k])=>k.p===t).sort((x,y)=>x[1].lvl-y[1].lvl||(x[1].active?1:0)-(y[1].active?1:0));
+          if(!ks.length)err('Ese jugador no tiene caballeros.');
+          remove();const[v,k]=ks[0];delete S.knights[v];
+          let lvl=k.lvl;const mc=countPieces(S,pi);while(lvl>1&&mc['k'+lvl]>=2)lvl--;
+          if(mc['k'+lvl]<2&&Object.keys(S.knights).length>=0){S.freeKnight=lvl}
+          log(`Un caballero de ${S.players[t].name} deserta hacia ${P.name}`);recalcLongest(S,B,log);break}
+        case'diplomat':{
+          if(!openRoads(S,B).includes(a.e))err('Elige un camino abierto.');
+          const own=S.lines[a.e].p===pi,who=S.players[S.lines[a.e].p].name;delete S.lines[a.e];remove();
+          if(own)S.free=(S.free||0)+1;
+          log(`${P.name} usa el Diplomático contra un camino de ${who}`);recalcLongest(S,B,log);break}
+        case'intrigue':{
+          const k=S.knights[a.v];if(!k||k.p===pi)err('Elige un caballero rival.');
+          if(!B.verts[a.v].e.some(e=>S.lines[e]&&S.lines[e].p===pi))err('Debe tocar uno de tus caminos.');
+          remove();displace(a.v);log(`${P.name} usa la Intriga`);recalcLongest(S,B,log);break}
+        case'saboteur':{remove();opp.forEach(j=>{if(vpOf(S,j,false)>=myVP){const q=Math.floor(sumRes(S.players[j].res)/2);takeRandom(S.players[j],null,q);if(q)log(`${S.players[j].name} descarta ${q} por el Saboteador`)}});break}
+        case'spy':{const t=a.p;if(!opp.includes(t))err('Elige a un rival.');const T=S.players[t];if(!T.prog.length)err('Ese jugador no tiene cartas de progreso.');
+          remove();const j=Math.floor(rand()*T.prog.length),got=T.prog.splice(j,1)[0];
+          if(P.prog.length<4)P.prog.push(got);else S.pdeck[PROG[got].c].unshift(got);log(`${P.name} espía a ${T.name} y le quita una carta`);break}
+        case'warlord':remove();Object.values(S.knights).forEach(k=>{if(k.p===pi&&!k.active){k.active=true;k.actT=S.turnNo}});log(`${P.name} activa a todos sus caballeros`);break;
+        case'wedding':{remove();opp.forEach(j=>{if(vpOf(S,j,false)>myVP){const g=takeRandom(S.players[j],P,2,[...COM,...RES]);if(g)log(`${S.players[j].name} regala ${g} carta(s) por la Boda`)}});break}
+        case'harbor':{remove();opp.forEach(j=>{const T=S.players[j];if(!COM.some(k=>T.res[k]))return;if(!RES.some(k=>P.res[k]))return;takeRandom(T,P,1,COM);takeRandom(P,T,1,RES)});log(`${P.name} usa el Puerto comercial`);break}
+        case'mmerchant':{const t=a.p;if(!opp.includes(t)||vpOf(S,t,false)<=myVP)err('Elige a un rival con más puntos que tú.');remove();const g=takeRandom(S.players[t],P,2);log(`${P.name} toma ${g} carta(s) de ${S.players[t].name}`);break}
+        case'merchant':{
+          const H=B.hexes[a.h];if(!H||!RES.includes(H.type))err('Elige una loseta de recurso.');
+          if(!H.v.some(v=>S.build[v]&&S.build[v].p===pi))err('Debe estar junto a una de tus construcciones.');
+          remove();S.merchant={h:a.h,p:pi};log(`${P.name} pone al Mercader en ${RES_ES[H.type]}`);break}
+        case'fleet':{if(!ALL.includes(a.res))err('Elige una carta.');remove();S.fleet={p:pi,res:a.res};log(`${P.name} usa la Flota mercante (${RES_ES[a.res]} 2:1)`);break}
+        case'resmono':{if(!RES.includes(a.res))err('Elige un recurso.');remove();let tot=0;opp.forEach(j=>{const T=S.players[j],q=Math.min(2,T.res[a.res]);T.res[a.res]-=q;P.res[a.res]+=q;tot+=q});log(`${P.name} usa Monopolio de ${RES_ES[a.res]} y recibe ${tot}`);break}
+        case'trademono':{if(!COM.includes(a.res))err('Elige una mercancía.');remove();let tot=0;opp.forEach(j=>{const T=S.players[j],q=Math.min(1,T.res[a.res]);T.res[a.res]-=q;P.res[a.res]+=q;tot+=q});log(`${P.name} usa Monopolio de ${RES_ES[a.res]} y recibe ${tot}`);break}
+        default:err('Carta desconocida.');
+      }
+      break;
+    }
+    case'bank':{
+      needCur();needStep('main');
+      if(!K.includes(a.give)||!K.includes(a.get)||a.give===a.get)err('Elige qué das y qué recibes.');
+      const r=ratioFor(S,B,pi,a.give);
+      if(P.res[a.give]<r)err(`Necesitas ${r} de ${RES_ES[a.give]}.`);
+      if(S.bank[a.get]<1)err('El banco no tiene de eso.');
+      P.res[a.give]-=r;S.bank[a.give]+=r;P.res[a.get]++;S.bank[a.get]--;
+      log(`${P.name} cambió ${r} ${RES_ES[a.give]} por 1 ${RES_ES[a.get]} con el banco`);break;
+    }
+    case'offer':{
+      needCur();needStep('main');
+      if(!sumRes(a.give)||!sumRes(a.get))err('Pon algo que das y algo que pides.');
+      if(!hasRes(P.res,a.give))err('No tienes lo que ofreces.');
+      S.offer={from:pi,give:a.give,get:a.get,acc:[],rej:[]};log(`${P.name} propone un intercambio`);break;
+    }
+    case'accept':case'reject':{
+      if(!S.offer||S.offer.from===pi)err('No hay oferta para ti.');
+      S.offer.acc=S.offer.acc.filter(x=>x!==pi);S.offer.rej=S.offer.rej.filter(x=>x!==pi);
+      if(a.t==='accept'){if(!hasRes(P.res,S.offer.get))err('No tienes lo que te piden.');S.offer.acc.push(pi)}else S.offer.rej.push(pi);
+      break;
+    }
+    case'cancelOffer':{needCur();S.offer=null;break}
+    case'confirm':{
+      needCur();const o=S.offer;
+      if(!o||!o.acc.includes(a.p))err('Esa persona no ha aceptado.');
+      const Q=S.players[a.p];
+      if(!hasRes(P.res,o.give)||!hasRes(Q.res,o.get))err('Alguien ya no tiene las cartas.');
+      for(const[k,q]of Object.entries(o.give)){P.res[k]-=q;Q.res[k]+=q}
+      for(const[k,q]of Object.entries(o.get)){Q.res[k]-=q;P.res[k]+=q}
+      log(`${P.name} intercambió con ${Q.name}`);S.offer=null;break;
+    }
+    case'end':{
+      needCur();needStep('main');
+      S.offer=null;P.dev.push(...P.newDev);P.newDev=[];S.devPlayed=false;S.free=0;S.tf={};S.fleet=null;S.freeKnight=0;
+      S.cur=(S.cur+1)%n;S.step='roll';S.turnNo++;log(`Turno de ${S.players[S.cur].name}`);break;
+    }
+    default:err('Acción desconocida.');
+  }
+  function claimMetro(tr){
+    const v=Object.keys(S.build).find(v=>{const b=S.build[v];return b.p===pi&&b.t==='city'&&!b.metro});
+    if(v==null){log(`${P.name} necesita una ciudad libre para su metrópolis de ${TRACK_ES[tr]}`);return}
+    S.build[v].metro=tr;S.metro[tr]=pi;log(`${P.name} funda la metrópolis de ${TRACK_ES[tr]}: +2 puntos`);
+  }
+  function steal(t){
+    const T=S.players[t],pool=K.flatMap(k=>Array(T.res[k]).fill(k));
+    if(!pool.length)return;
+    const k=pool[Math.floor(rand()*pool.length)];T.res[k]--;P.res[k]++;
+    log(`${P.name} le robó una carta a ${T.name}`);
+  }
+  if(S.phase==='play'){
+    const w=S.cur;
+    if(vpOf(S,w,true)>=targetOf(S)){S.phase='over';S.winner=w;log(`¡${S.players[w].name} gana con ${vpOf(S,w,true)} puntos!`)}
+  }
+  S.v=(S.v||0)+1;S.at=Date.now();
+  return S;
+}
+
+</script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const RC={wood:'#2f6b33',brick:'#b5542e',sheep:'#79a83b',wheat:'#d6a51f',ore:'#69737d',gold:'#c9961a'};
+const HEXFILL={wood:'#3d7a3a',brick:'#c06a3e',sheep:'#9cc25a',wheat:'#e7c04a',ore:'#8a939c',desert:'#dcc994',gold:'#e3b23c'};
+const TCOL={trade:'#d9a520',politics:'#2f63c4',science:'#2f8f4a'};
+let ME=null,G=null,busy=false,peer=null,conns=[],hostConn=null,isHost=false,pendingT=null,joinedOnce=false;
+try{ME=localStorage.getItem('hx-pid')}catch(e){}
+if(!ME){ME='p'+Math.random().toString(36).slice(2,10);try{localStorage.setItem('hx-pid',ME)}catch(e){}}
+const PEER_PREFIX='hexterra-v1-';
+const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const joinLink=code=>location.origin+location.pathname+'?c='+code;
+/* local, per-viewer UI state */
+const U={net:null,code:null,mode:null,sheet:null,dd:{},gd:{},pd:{},tg:{},tr:{},bg:null,bt:null,tab:'bank',newMode:'base',ck:false,table:false,view:null,showBoard:false,name:'',kfrom:null,inv:[],pcard:null,alc:{w:3,r:3}};
+try{U.name=localStorage.getItem('hx-name')||'';U.ck=localStorage.getItem('hx-ck')==='1';U.table=localStorage.getItem('hx-table')==='1'}catch(e){}
+const VIEW_ES={screen:'Pantalla',control:'Control',player:'Completo'};
+function viewOf(){
+  if(U.view)return U.view;
+  let v=null;try{v=localStorage.getItem('hx-view-'+U.code)}catch(e){}
+  if(v)return U.view=v;
+  /* derived default (not remembered): the table's own host device is the screen; everyone else plays */
+  if(G&&G.table&&!G.pids.includes(ME)&&G.host===ME)return 'screen';
+  return G&&G.table?'control':'player';
+}
+function setView(v){U.view=v;U.mode=null;U.showBoard=false;try{localStorage.setItem('hx-view-'+U.code,v)}catch(e){};if(v==='screen')keepAwake();render()}
+let wakeLock=null;
+async function keepAwake(){try{if(navigator.wakeLock&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>wakeLock=null)}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&U.view==='screen')keepAwake()});
+
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,3200)}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const modeName=S=>MODES[S.mode].name+(S.ck?' + Ciudades y caballeros':'');
+
+/* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
+function resetLocal(a){if(a.t!=='join'){U.mode=null;U.kfrom=null;U.inv=[];U.pcard=null}}
+async function send(a){
+  if(!G)return;
+  if(isHost){const e=hostApply(ME,a);if(e)toast(e);else resetLocal(a);return}
+  if(!hostConn||!hostConn.open){toast('Sin conexión con la pantalla. Reconectando…');return}
+  if(busy)return;busy=true;clearTimeout(pendingT);pendingT=setTimeout(()=>{busy=false},6000);
+  hostConn.send({type:'act',a,pid:ME});resetLocal(a);
+}
+function saveHost(){
+  lsSet('hx-host-'+G.code,G);
+  const list=lsGet('hx-hosted',[]).filter(c=>c!==G.code);list.unshift(G.code);
+  list.slice(10).forEach(c=>{try{localStorage.removeItem('hx-host-'+c)}catch(e){}});
+  lsSet('hx-hosted',list.slice(0,10));
+}
+function broadcast(){const m={type:'state',S:G};conns.forEach(c=>{try{if(c.open)c.send(m)}catch(e){}})}
+function hostApply(pid,a){try{G=act(G,pid,a);saveHost();broadcast();render();return null}catch(e){return e.message||'No se pudo.'}}
+function startHost(S){
+  closeNet();isHost=true;G=S;U.code=S.code;U.view=null;U.net='connecting';saveHost();
+  if(viewOf()==='screen')keepAwake();
+  if(!window.Peer){U.net='nolib';render();return}
+  peer=new Peer(PEER_PREFIX+S.code);
+  peer.on('open',()=>{U.net='ok';render()});
+  peer.on('error',e=>{
+    if(e.type==='unavailable-id'){U.net='taken';toast('Este código ya está abierto en otra pantalla.')}
+    else if(['network','server-error','socket-error','socket-closed'].includes(e.type)){U.net='lost'}
+    render();
+  });
+  peer.on('disconnected',()=>{U.net='lost';render();setTimeout(()=>{try{if(peer&&!peer.destroyed)peer.reconnect()}catch(e){}},2000)});
+  peer.on('connection',c=>{
+    c.on('open',()=>{conns.push(c);c.send({type:'state',S:G});render()});
+    c.on('data',m=>{if(m&&m.type==='act'&&typeof m.pid==='string'){const e=hostApply(m.pid,m.a);if(e)try{c.send({type:'err',msg:e})}catch(_){}}});
+    c.on('close',()=>{conns=conns.filter(x=>x!==c);render()});
+  });
+  render();
+}
+function joinRemote(code,asScreen){
+  code=(code||'').toUpperCase().trim();if(!/^[A-Z]{5}$/.test(code)){toast('El código tiene 5 letras.');return}
+  closeNet();isHost=false;U.code=code;U.view=null;G=null;joinedOnce=false;
+  if(asScreen){U.view='screen';try{localStorage.setItem('hx-view-'+code,'screen')}catch(e){};keepAwake()}
+  lsSet('hx-last',code);
+  if(!window.Peer){U.net='nolib';render();return}
+  U.net='connecting';render();
+  peer=new Peer();
+  peer.on('open',connect);
+  peer.on('error',e=>{if(e.type==='peer-unavailable'){U.net='nohost';render();retry()}else if(['network','server-error','socket-error','socket-closed'].includes(e.type)){U.net='lost';render();retry()}});
+  peer.on('disconnected',()=>{setTimeout(()=>{try{if(peer&&!peer.destroyed)peer.reconnect()}catch(e){}},2000)});
+}
+function connect(){
+  if(!peer||peer.destroyed||isHost||!U.code)return;
+  if(hostConn)try{hostConn.close()}catch(e){}
+  const c=peer.connect(PEER_PREFIX+U.code,{reliable:true});hostConn=c;
+  c.on('open',()=>{U.net='ok';render()});
+  c.on('data',m=>{
+    if(m.type==='state'){busy=false;G=m.S;
+      if(G.phase==='lobby'&&!G.pids.includes(ME)&&viewOf()!=='screen'&&!joinedOnce){joinedOnce=true;send({t:'join',name:U.name.trim()||'Jugador'})}
+      render()}
+    else if(m.type==='err'){busy=false;toast(m.msg)}
+  });
+  c.on('close',()=>{if(hostConn===c){U.net='lost';render();retry()}});
+}
+function retry(){clearTimeout(retry.t);retry.t=setTimeout(()=>{if(U.code&&!isHost&&peer&&!peer.destroyed){if(peer.disconnected)try{peer.reconnect()}catch(e){};connect()}},2500)}
+function closeNet(){clearTimeout(retry.t);try{if(hostConn)hostConn.close()}catch(e){}hostConn=null;conns.forEach(c=>{try{c.close()}catch(e){}});conns=[];try{if(peer)peer.destroy()}catch(e){}peer=null;isHost=false}
+function createGame(){
+  const name=U.name.trim();if(!name&&!U.table){toast('Escribe tu nombre primero.');return}
+  let S=newState(U.newMode,ME,name,U.ck,U.table);
+  S.code=Array.from({length:5},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random()*24)]).join('');
+  S.log.push(U.table?'Se abrió la mesa. Entren desde sus teléfonos con el código o el QR.':`${name} creó la partida`);
+  if(U.table){U.view='screen';try{localStorage.setItem('hx-view-'+S.code,'screen')}catch(e){}}
+  startHost(S);
+}
+function closeGame(){closeNet();G=null;U.code=null;U.net=null;render()}
+window.addEventListener('beforeunload',e=>{if(isHost&&G&&G.phase!=='over'){e.preventDefault();e.returnValue=''}});
+function netPill(){
+  if(isHost){const n=conns.filter(c=>c.open).length;
+    if(U.net==='ok')return`<span class="net">Aquí vive la partida · ${n} teléfono${n===1?'':'s'} conectado${n===1?'':'s'}</span>`;
+    if(U.net==='taken')return`<span class="net bad">Código ocupado en otra pantalla</span>`;
+    if(U.net==='nolib')return`<span class="net bad">No cargó la conexión. Revisa internet y recarga.</span>`;
+    return`<span class="net bad">Conectando al servicio…</span>`}
+  return{ok:'<span class="net">Conectado a la pantalla</span>',connecting:'<span class="net">Conectando…</span>',nohost:'<span class="net bad">No encuentro esa pantalla. ¿Está abierta?</span>',lost:'<span class="net bad">Reconectando…</span>',nolib:'<span class="net bad">No cargó la conexión. Revisa internet y recarga.</span>'}[U.net]||'';
+}
+function drawQR(el,code){if(!el)return;el.innerHTML='';try{new QRCode(el,{text:joinLink(code),width:220,height:220,colorDark:'#14262b',colorLight:'#ffffff'})}catch(e){el.remove()}}
+
+/* ---------- render root ---------- */
+function render(){
+  if(!U.code)return renderHome();
+  if(!G){$('#app').innerHTML=`<div class="top"><button id="back">← Inicio</button>${netPill()}</div><p class="muted">Buscando la partida <span class="code">${esc(U.code)}</span>…</p><p class="small muted">La pantalla de la mesa tiene que estar abierta. Si están en la misma casa, usen el mismo Wi-Fi.</p>`;$('#sheet').innerHTML='';$('#back').onclick=closeGame;return}
+  if(G.phase==='lobby')return renderLobby();
+  renderGame();
+}
+
+/* ---------- home ---------- */
+function renderHome(){
+  $('#sheet').innerHTML='';
+  const hosted=lsGet('hx-hosted',[]).map(c=>lsGet('hx-host-'+c,null)).filter(S=>S&&S.phase!=='over');
+  const last=lsGet('hx-last',null);
+  $('#app').innerHTML=`
+  <header class="brand">${logoSvg(54)}<div><h1>Hexterra</h1><p>Coloniza la isla con tus amigos. El tablero en una pantalla, las cartas en cada teléfono.</p></div></header>
+  <div class="home">
+    <section class="card">
+      <div class="lbl">Tu nombre</div>
+      <input id="nm" maxlength="16" placeholder="Cómo te verán los demás" value="${esc(U.name)}">
+      <div class="lbl">¿Te invitaron?</div>
+      <div class="row"><input id="jc" maxlength="5" placeholder="ABCDE" value="${esc(U.pre||'')}" style="text-transform:uppercase;width:140px;letter-spacing:.15em;font-weight:800"><button class="pri" id="join">Unirme a jugar</button><button id="jscr">Usar como pantalla</button></div>
+      ${last&&!U.pre?`<button class="gitem" id="rej"><span>Volver a la partida <span class="code">${esc(last)}</span></span><span class="small muted">en otra pantalla</span></button>`:''}
+    </section>
+    <section class="card">
+      <div class="lbl">Abrir una partida nueva</div>
+      <div class="modes">${Object.entries(MODES).map(([k,m])=>`<button class="mode ${U.newMode===k?'sel':''}" data-mode="${k}"><b>${m.name}</b><span>${m.desc}</span></button>`).join('')}</div>
+      <button class="toggle ${U.ck?'sel':''}" id="ck"><span class="box">${U.ck?'✓':''}</span><div><b>Ciudades y caballeros</b><br><span>Mercancías, mejoras, metrópolis, caballeros contra los bárbaros y cartas de progreso. Se juega a 3 puntos más.</span></div></button>
+      <button class="toggle ${U.table?'sel':''}" id="tb"><span class="box">${U.table?'✓':''}</span><div><b>Modo mesa</b><br><span>Este dispositivo (tele, tablet o laptop) será la pantalla con el tablero y no juega. Cada jugador entra desde su teléfono.</span></div></button>
+      <p class="small muted" style="margin:0" id="tgt"></p>
+      <button class="pri" id="create">${U.table?'Abrir mesa en esta pantalla':'Crear partida (este dispositivo la guarda)'}</button>
+      ${hosted.length?`<div class="lbl">Partidas guardadas aquí</div><div class="glist">${hosted.map(S=>`<button class="gitem" data-res="${S.code}"><span><span class="code">${S.code}</span> · ${esc(modeName(S))}<br><span class="small muted">${S.players.map(p=>esc(p.name)).join(', ')||'sin jugadores'}</span></span><span class="small muted">${S.phase==='lobby'?'en sala':'turno '+(S.turnNo||0)}<br>retomar</span></button>`).join('')}</div>`:''}
+    </section>
+  </div>
+  <p class="small muted" style="max-width:70ch">El dispositivo que abre la partida la guarda: déjalo encendido y con esta página abierta. Los demás se conectan a él por internet; funciona mejor si están en el mismo Wi-Fi.</p>`;
+  const tgt=()=>{$('#tgt').textContent=`Se gana con ${MODES[U.newMode].target+(U.ck?3:0)} puntos.`};tgt();
+  $('#nm').oninput=e=>{U.name=e.target.value;try{localStorage.setItem('hx-name',U.name)}catch(_){}};
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{U.newMode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('sel',x===b));tgt()});
+  $('#ck').onclick=()=>{U.ck=!U.ck;try{localStorage.setItem('hx-ck',U.ck?'1':'0')}catch(_){}renderHome()};
+  $('#tb').onclick=()=>{U.table=!U.table;try{localStorage.setItem('hx-table',U.table?'1':'0')}catch(_){}renderHome()};
+  $('#create').onclick=createGame;
+  $('#join').onclick=()=>{if(!U.name.trim()){toast('Escribe tu nombre primero.');$('#nm').focus();return}U.pre=null;joinRemote($('#jc').value)};
+  $('#jscr').onclick=()=>{U.pre=null;joinRemote($('#jc').value,true)};
+  $('#jc').onkeydown=e=>{if(e.key==='Enter')$('#join').click()};
+  if($('#rej'))$('#rej').onclick=()=>joinRemote(last);
+  document.querySelectorAll('[data-res]').forEach(b=>b.onclick=()=>{const S=lsGet('hx-host-'+b.dataset.res,null);if(S)startHost(S)});
+  if(U.pre&&!U.name.trim())$('#nm').focus();
+}
+
+/* ---------- lobby ---------- */
+function renderLobby(){
+  $('#sheet').innerHTML='';
+  const M=MODES[G.mode],isHost=G.host===ME,inG=G.pids.includes(ME);
+  if(viewOf()==='screen'){
+    $('#app').innerHTML=`
+    <div class="top"><div class="row"><button id="back">← Salir</button><h2>Hexterra · mesa</h2>${netPill()}</div><span class="muted small">${esc(modeName(G))} · gana con ${targetOf(G)}</span></div>
+    <div class="home">
+     <section class="card" style="gap:16px">
+       <div class="lbl">Entren desde su teléfono</div>
+       <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:clamp(15px,1.4vw,20px)">
+         <li>Escaneen este QR con la cámara del teléfono (o abran ${esc(location.host+location.pathname)}).</li>
+         <li>Escriban su nombre y, si no se llenó solo, este código.</li>
+         <li>Toquen <b>Unirme a jugar</b>. Sus cartas aparecen en su teléfono; el tablero, aquí.</li>
+       </ol>
+       <div class="row" style="gap:24px;align-items:center"><div class="qr" id="qr"></div><div class="lobbycode" style="font-size:clamp(56px,10vw,120px)">${G.code}</div></div>
+       ${isHost?`<button class="pri" id="start" ${G.players.length<M.min?'disabled':''}>Empezar partida (${G.players.length} jugador${G.players.length===1?'':'es'})</button>`:`<p class="small muted" style="margin:0">Quien abrió la mesa empieza la partida.</p>`}
+       ${G.players.length<M.min?`<p class="small muted" style="margin:0">Faltan ${M.min-G.players.length} para poder empezar (${M.min}–${M.max} jugadores).</p>`:''}
+     </section>
+     <section class="card"><div class="lbl">En la mesa</div>
+       <div class="players">${G.players.length?G.players.map(p=>`<div class="pl"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="nm" style="font-size:18px">${esc(p.name)}</span><span class="small muted">${COLORS[p.color].n}</span></div>`).join(''):'<p class="muted" style="margin:0">Todavía no entra nadie.</p>'}</div>
+       ${inG?'':`<button id="jn">También juego desde este dispositivo</button>`}
+     </section>
+    </div>`;
+    $('#back').onclick=closeGame;drawQR($('#qr'),G.code);
+    if($('#start'))$('#start').onclick=()=>send({t:'start'});
+    if($('#jn'))$('#jn').onclick=()=>{setView('player');send({t:'join',name:U.name.trim()||'Jugador'})};
+    return;
+  }
+  $('#app').innerHTML=`
+  <div class="top"><button id="back">← Salir</button>${netPill()}<span class="muted small">${esc(modeName(G))} · gana con ${targetOf(G)}</span></div>
+  <div class="home">
+   <section class="card">
+     <div class="lbl">Código de la partida</div>
+     <div class="row" style="justify-content:space-between"><div class="lobbycode">${G.code}</div><button id="copy">Copiar código</button></div>
+     <p class="muted small" style="margin:0">Tus amigos escanean el QR o abren ${esc(location.host+location.pathname)}, escriben su nombre y este código. ${M.min}–${M.max} jugadores.</p><div class="qr" id="qr"></div>
+     ${inG?'':`<button class="pri" id="jn">Entrar a la partida</button>`}
+     ${isHost?`<button class="pri" id="start" ${G.players.length<M.min?'disabled':''}>Empezar partida (${G.players.length} jugador${G.players.length===1?'':'es'})</button>`:`<p class="small muted" style="margin:0">Esperando a que ${esc(G.players.find(p=>p.id===G.host)?.name||'el anfitrión')} empiece.</p>`}
+     ${inG?`<button id="lv">Dejar la sala</button>`:''}
+   </section>
+   <section class="card"><div class="lbl">En la sala</div>
+     <div class="players">${G.players.map(p=>`<div class="pl"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="nm">${esc(p.name)}${p.id===G.host?' <span class="badge">anfitrión</span>':''}${p.id===ME?' <span class="muted small">(tú)</span>':''}</span><span class="small muted">${COLORS[p.color].n}</span></div>`).join('')}</div>
+     <p class="small muted" style="margin:0">El orden de turno se sortea al empezar.${G.ck?' En Ciudades y caballeros tu segunda colocación es una ciudad.':''}</p>
+   </section>
+  </div>`;
+  $('#back').onclick=closeGame;drawQR($('#qr'),G.code);
+  $('#copy').onclick=()=>{try{navigator.clipboard.writeText(G.code).then(()=>toast('Código copiado'),()=>toast('Código: '+G.code))}catch(e){toast('Código: '+G.code)}};
+  if($('#jn'))$('#jn').onclick=()=>send({t:'join',name:U.name.trim()||'Jugador'});
+  if($('#start'))$('#start').onclick=()=>send({t:'start'});
+  if($('#lv'))$('#lv').onclick=async()=>{await send({t:'leave'});closeGame()};
+}
+
+/* ---------- game ---------- */
+function myIdx(){return G.players.findIndex(p=>p.id===ME)}
+const MODE_ES={road:'¿Dónde va el camino?',ship:'¿Dónde va el barco?',settlement:'¿Dónde va el poblado?',city:'¿Qué poblado mejoras?',
+  knight:'¿Dónde pones el caballero?',activate:'¿Qué caballero activas?',promote:'¿Qué caballero promueves?',kmove:'¿Qué caballero mueves?',kmove2:'¿A dónde va?',
+  kchase:'¿Qué caballero ahuyenta al ladrón?',wall:'¿Qué ciudad amurallas?',inventor:'Elige dos losetas para cambiar sus números',diplomat:'¿Qué camino abierto quitas?',
+  intrigue:'¿Qué caballero rival desplazas?',merchant:'¿Dónde pones al mercader?'};
+function targets(){
+  const S=G,B=board(S),pi=myIdx(),t={v:[],e:[],h:[],kind:null};
+  if(pi<0||S.cur!==pi||S.phase==='over')return t;
+  const V=B.verts.map((v,i)=>i),E=B.edges.map((e,i)=>i),H=B.hexes.map((h,i)=>i);
+  if(S.phase==='setup'){
+    if(S.step==='setS')t.v=V.filter(i=>canSettle(S,B,i,pi,true));
+    else t.e=E.filter(i=>canLine(S,B,i,pi,'road',S.lastV)||canLine(S,B,i,pi,'ship',S.lastV));
+    return t;
+  }
+  if(S.step==='robber'){t.h=H.filter(i=>B.hexes[i].type!=='sea'&&i!==S.robber);return t}
+  const m=U.mode,K=S.knights||{};
+  if(m==='road'||m==='ship')t.e=E.filter(i=>canLine(S,B,i,pi,m,null));
+  if(m==='settlement')t.v=V.filter(i=>canSettle(S,B,i,pi,false));
+  if(m==='city')t.v=V.filter(i=>canCity(S,i,pi));
+  if(m==='knight')t.v=V.filter(i=>knightSpot(S,B,i,pi));
+  if(m==='activate')t.v=V.filter(i=>K[i]&&K[i].p===pi&&!K[i].active);
+  if(m==='promote')t.v=V.filter(i=>K[i]&&K[i].p===pi&&K[i].lvl<3&&K[i].proT!==S.turnNo);
+  if(m==='kmove')t.v=U.kfrom==null?V.filter(i=>knightCanAct(S,i,pi)&&knightMoves(S,B,i,pi).length):knightMoves(S,B,U.kfrom,pi);
+  if(m==='kchase')t.v=V.filter(i=>knightCanAct(S,i,pi)&&B.hexes[S.robber].v.includes(i));
+  if(m==='wall')t.v=V.filter(i=>{const b=S.build[i];return b&&b.p===pi&&b.t==='city'&&!b.wall});
+  if(m==='inventor')t.h=H.filter(i=>{const x=numOf(S,B,i);return x&&![2,12,6,8].includes(x)&&!U.inv.includes(i)});
+  if(m==='diplomat')t.e=openRoads(S,B);
+  if(m==='intrigue')t.v=V.filter(i=>K[i]&&K[i].p!==pi&&B.verts[i].e.some(e=>S.lines[e]&&S.lines[e].p===pi));
+  if(m==='merchant')t.h=H.filter(i=>RES.includes(B.hexes[i].type)&&B.hexes[i].v.some(v=>S.build[v]&&S.build[v].p===pi));
+  return t;
+}
+function boardSvg(passive){
+  const S=G,B=board(S),Z=48,{x0,x1,y0,y1}=B.bounds,pad=.15;
+  const vb=`${(x0-pad)*Z} ${(y0-pad)*Z} ${(x1-x0+2*pad)*Z} ${(y1-y0+2*pad)*Z}`;
+  const T=passive?{v:[],e:[],h:[]}:targets();const out=[];
+  const poly=(h,s)=>{const p=[];for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30);p.push(((h.x+Math.cos(a)*s)*Z).toFixed(1)+','+((h.y+Math.sin(a)*s)*Z).toFixed(1))}return p.join(' ')};
+  out.push(`<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tablero">`);
+  out.push(`<defs>${glyphDefs()}</defs>`);
+  out.push(`<rect x="${(x0-pad)*Z}" y="${(y0-pad)*Z}" width="${(x1-x0+2*pad)*Z}" height="${(y1-y0+2*pad)*Z}" fill="var(--sea2)"/>`);
+  B.hexes.forEach((h,i)=>{
+    if(h.type==='sea'){out.push(`<polygon points="${poly(h,1)}" fill="var(--sea1)" stroke="var(--sea2)" stroke-width="1.5"/>`);return}
+    out.push(`<polygon points="${poly(h,1)}" fill="#e8d9a8" stroke="#c9b67e" stroke-width="1"/>`);
+    out.push(`<polygon points="${poly(h,.93)}" fill="${HEXFILL[h.type]}" stroke="rgba(0,0,0,.18)" stroke-width="1"/>`);
+    const num=numOf(S,B,i);
+    out.push(`<use href="#g-${h.type}" x="${h.x*Z-14}" y="${h.y*Z-(num?36:16)}" width="28" height="28"/>`);
+    if(num){const red=num===6||num===8;const pips=6-Math.abs(7-num);
+      out.push(`<circle cx="${h.x*Z}" cy="${h.y*Z+7}" r="14.5" fill="#f6efd9" stroke="${U.inv.includes(i)?'#f0b429':'rgba(0,0,0,.25)'}" stroke-width="${U.inv.includes(i)?3:1}"/>`);
+      out.push(`<text x="${h.x*Z}" y="${h.y*Z+10.5}" text-anchor="middle" font-family="Bricolage Grotesque,system-ui" font-weight="800" font-size="${num>9?13:15}" fill="${red?'#b8261b':'#2a2a2a'}">${num}</text>`);
+      for(let k=0;k<pips;k++)out.push(`<circle cx="${h.x*Z+(k-(pips-1)/2)*3.2}" cy="${h.y*Z+15.5}" r="1.1" fill="${red?'#b8261b':'#2a2a2a'}"/>`);
+    }
+  });
+  B.ports.forEach(p=>{const E=B.edges[p.e];
+    [E.a,E.b].forEach(v=>out.push(`<line x1="${p.x*Z}" y1="${p.y*Z}" x2="${B.verts[v].x*Z}" y2="${B.verts[v].y*Z}" stroke="#f3ead0" stroke-width="2.5" stroke-dasharray="3 3" opacity=".8"/>`));
+    out.push(`<circle cx="${p.x*Z}" cy="${p.y*Z}" r="12" fill="${p.type==='any'?'#f3ead0':RC[p.type]}" stroke="#2a2a2a" stroke-width="1"/>`);
+    out.push(`<text x="${p.x*Z}" y="${p.y*Z+4}" text-anchor="middle" font-family="Nunito Sans,system-ui" font-weight="800" font-size="10" fill="${p.type==='any'||p.type==='wheat'?'#2a2a2a':'#fff'}">${p.type==='any'?'3:1':'2:1'}</text>`);
+  });
+  if(S.merchant){const h=B.hexes[S.merchant.h],c=COLORS[S.players[S.merchant.p].color].c;
+    out.push(`<g transform="translate(${h.x*Z-19},${h.y*Z-4})"><rect x="-7" y="-9" width="14" height="18" rx="3" fill="${c}" stroke="#1d1d1d" stroke-width="1.5"/><text y="4" text-anchor="middle" font-size="10" font-weight="900" fill="#1d1d1d" font-family="Nunito Sans,system-ui">M</text></g>`)}
+  if(S.robber!=null&&S.robber>=0){const h=B.hexes[S.robber],live=!S.ck||S.attacked;out.push(`<g transform="translate(${h.x*Z+17},${h.y*Z-2})" opacity="${live?1:.55}"><ellipse cx="0" cy="12" rx="8" ry="3" fill="rgba(0,0,0,.35)"/><path d="M-6 12 Q-7 0 -3 -2 A5 5 0 1 1 3 -2 Q7 0 6 12 Z" fill="#2b2b33" stroke="#000" stroke-width="1"/></g>`)}
+  for(const[e,l]of Object.entries(S.lines)){const E=B.edges[e],a=B.verts[E.a],b=B.verts[E.b],c=COLORS[S.players[l.p].color].c;
+    const ax=a.x+(b.x-a.x)*.14,ay=a.y+(b.y-a.y)*.14,bx=b.x+(a.x-b.x)*.14,by=b.y+(a.y-b.y)*.14;
+    if(l.t==='road'){out.push(`<line x1="${ax*Z}" y1="${ay*Z}" x2="${bx*Z}" y2="${by*Z}" stroke="#1d1d1d" stroke-width="10" stroke-linecap="round"/><line x1="${ax*Z}" y1="${ay*Z}" x2="${bx*Z}" y2="${by*Z}" stroke="${c}" stroke-width="6.5" stroke-linecap="round"/>`)}
+    else{const ang=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;out.push(`<g transform="translate(${E.x*Z},${E.y*Z}) rotate(${ang})"><path d="M-15 0 L15 0 L10 7 L-10 7 Z" fill="${c}" stroke="#1d1d1d" stroke-width="1.5"/><path d="M-2 -1 L-2 -14 L9 -2 Z" fill="#f4f1e8" stroke="#1d1d1d" stroke-width="1"/></g>`)}
+  }
+  for(const[v,b]of Object.entries(S.build)){const V=B.verts[v],c=COLORS[S.players[b.p].color].c,x=V.x*Z,y=V.y*Z;
+    if(b.wall)out.push(`<rect x="${x-16}" y="${y-8}" width="32" height="21" rx="3" fill="#7b5a43" stroke="#1d1d1d" stroke-width="1.5"/><path d="M${x-16} ${y-8} h4 v-3 h4 v3 h4 v-3 h4 v3 h4 v-3 h4 v3 h4 v-3 h4 v3" fill="none" stroke="#1d1d1d" stroke-width="1.2"/>`);
+    if(b.t==='settlement')out.push(`<path transform="translate(${x},${y})" d="M-8 9 L-8 -2 L0 -10 L8 -2 L8 9 Z" fill="${c}" stroke="#1d1d1d" stroke-width="1.8" stroke-linejoin="round"/>`);
+    else out.push(`<path transform="translate(${x},${y})" d="M-12 10 L-12 -3 L-4 -3 L-4 -8 L2 -14 L8 -8 L8 -1 L12 -1 L12 10 Z" fill="${c}" stroke="#1d1d1d" stroke-width="1.8" stroke-linejoin="round"/>`);
+    if(b.metro)out.push(`<path transform="translate(${x+2},${y-20})" d="M-8 4 L-8 -4 L-4 0 L0 -6 L4 0 L8 -4 L8 4 Z" fill="${TCOL[b.metro]}" stroke="#1d1d1d" stroke-width="1.5" stroke-linejoin="round"/>`);
+  }
+  for(const[v,k]of Object.entries(S.knights||{})){const V=B.verts[v],c=COLORS[S.players[k.p].color].c,x=V.x*Z,y=V.y*Z;
+    out.push(`<g transform="translate(${x},${y})"><circle r="11" fill="${k.active?c:'#f4f1e8'}" stroke="${k.active?'#1d1d1d':c}" stroke-width="${k.active?2:3.5}"/>`);
+    for(let i=0;i<k.lvl;i++)out.push(`<rect x="${-6+i*4.5}" y="-4" width="3" height="8" rx="1" fill="${k.active?'#1d1d1d':c}"/>`);
+    out.push(`</g>`);
+  }
+  if(U.kfrom!=null){const V=B.verts[U.kfrom];out.push(`<circle cx="${V.x*Z}" cy="${V.y*Z}" r="15" fill="none" stroke="var(--hl)" stroke-width="3"/>`)}
+  T.h.forEach(i=>{const h=B.hexes[i];out.push(`<polygon class="tgt" data-h="${i}" points="${poly(h,.9)}" fill="rgba(240,180,41,.18)" stroke="var(--hl)" stroke-width="3"/>`)});
+  T.e.forEach(i=>{const E=B.edges[i],a=B.verts[E.a],b=B.verts[E.b];out.push(`<g class="tgt" data-e="${i}"><line x1="${a.x*Z}" y1="${a.y*Z}" x2="${b.x*Z}" y2="${b.y*Z}" stroke="transparent" stroke-width="18"/><line class="pulse" x1="${(a.x+(b.x-a.x)*.2)*Z}" y1="${(a.y+(b.y-a.y)*.2)*Z}" x2="${(b.x+(a.x-b.x)*.2)*Z}" y2="${(b.y+(a.y-b.y)*.2)*Z}" stroke="var(--hl)" stroke-width="6" stroke-linecap="round"/></g>`)});
+  T.v.forEach(i=>{const V=B.verts[i];out.push(`<g class="tgt" data-v="${i}"><circle cx="${V.x*Z}" cy="${V.y*Z}" r="15" fill="transparent"/><circle class="pulse" cx="${V.x*Z}" cy="${V.y*Z}" r="${S.build[i]||(S.knights||{})[i]?13:7}" fill="${S.build[i]||(S.knights||{})[i]?'none':'var(--hl)'}" stroke="${S.build[i]||(S.knights||{})[i]?'var(--hl)':'#2a1d00'}" stroke-width="${S.build[i]||(S.knights||{})[i]?3.5:1.5}"/></g>`)});
+  out.push('</svg>');
+  return out.join('');
+}
+function glyphDefs(){
+  return `<symbol id="g-wood" viewBox="0 0 28 28"><path d="M8 22 L8 18 M20 22 L20 17" stroke="#3a2412" stroke-width="2.5"/><path d="M8 3 L14 15 L2 15 Z M20 5 L26 15 L14 15 Z" fill="#1f4d22"/></symbol>
+  <symbol id="g-brick" viewBox="0 0 28 28"><g fill="#8a3a1c" stroke="#e7b08f" stroke-width="1"><rect x="3" y="15" width="10" height="5"/><rect x="14" y="15" width="10" height="5"/><rect x="8" y="9" width="10" height="5"/></g></symbol>
+  <symbol id="g-sheep" viewBox="0 0 28 28"><ellipse cx="14" cy="15" rx="9" ry="6" fill="#fbfbf4"/><circle cx="22" cy="12" r="3.2" fill="#2d2d2d"/><path d="M9 20 V24 M18 20 V24" stroke="#2d2d2d" stroke-width="2"/></symbol>
+  <symbol id="g-wheat" viewBox="0 0 28 28"><path d="M14 25 V6" stroke="#7a5a10" stroke-width="2"/><g fill="#8a6612"><ellipse cx="11" cy="9" rx="2.5" ry="4" transform="rotate(-25 11 9)"/><ellipse cx="17" cy="9" rx="2.5" ry="4" transform="rotate(25 17 9)"/><ellipse cx="11" cy="15" rx="2.5" ry="4" transform="rotate(-25 11 15)"/><ellipse cx="17" cy="15" rx="2.5" ry="4" transform="rotate(25 17 15)"/></g></symbol>
+  <symbol id="g-ore" viewBox="0 0 28 28"><path d="M2 23 L10 8 L15 15 L19 10 L26 23 Z" fill="#4a525b"/><path d="M10 8 L13 12 L8 13 Z" fill="#e8ecef"/></symbol>
+  <symbol id="g-gold" viewBox="0 0 28 28"><circle cx="14" cy="15" r="8" fill="#fff0a8" stroke="#8a6612" stroke-width="2"/><path d="M14 10 V20" stroke="#8a6612" stroke-width="2"/></symbol>
+  <symbol id="g-desert" viewBox="0 0 28 28"><path d="M14 24 V8 M14 14 H10 V10 M14 17 H18 V12" stroke="#5f7a3a" stroke-width="3" fill="none" stroke-linecap="round"/></symbol>`;
+}
+function logoSvg(s){return`<svg width="${s}" height="${s}" viewBox="0 0 54 54" aria-hidden="true"><polygon points="27,3 48,15 48,39 27,51 6,39 6,15" fill="#2f6e8f"/><polygon points="27,11 41,19 41,35 27,43 13,35 13,19" fill="#e7c04a"/><polygon points="27,11 41,19 27,27 13,19" fill="#3d7a3a"/><polygon points="27,27 41,35 27,43" fill="#c06a3e"/><polygon points="13,35 27,27 27,43" fill="#8a939c"/></svg>`}
+function dieSvg(n,red){const P={1:[[1,1]],2:[[0,0],[2,2]],3:[[0,0],[1,1],[2,2]],4:[[0,0],[2,0],[0,2],[2,2]],5:[[0,0],[2,0],[1,1],[0,2],[2,2]],6:[[0,0],[2,0],[0,1],[2,1],[0,2],[2,2]]}[n];
+  return`<svg width="34" height="34" viewBox="0 0 34 34"><rect x="1" y="1" width="32" height="32" rx="7" fill="${red?'#c4362a':'#f6efd9'}" stroke="#2a2a2a"/>${P.map(([x,y])=>`<circle cx="${8+x*9}" cy="${8+y*9}" r="3" fill="${red?'#fff':'#2a2a2a'}"/>`).join('')}</svg>`}
+function eventSvg(ev){
+  if(ev==='ship')return`<svg width="34" height="34" viewBox="0 0 34 34" aria-label="Barco bárbaro"><rect x="1" y="1" width="32" height="32" rx="7" fill="#3b2f3a" stroke="#2a2a2a"/><path d="M7 21 H27 L23 27 H11 Z" fill="#f4f1e8"/><path d="M16 20 V7 L25 18 Z" fill="#c4362a"/></svg>`;
+  return`<svg width="34" height="34" viewBox="0 0 34 34" aria-label="${EVENT_ES[ev]}"><rect x="1" y="1" width="32" height="32" rx="7" fill="${TCOL[ev]}" stroke="#2a2a2a"/><path d="M9 27 V14 A8 8 0 0 1 25 14 V27 Z" fill="none" stroke="#fff" stroke-width="3"/><path d="M17 8 V27" stroke="#fff" stroke-width="2"/></svg>`}
+function chipList(o){return Object.entries(o).filter(([k,q])=>q>0).map(([k,q])=>`<span class="chip r-${k}">${q} ${RES_ES[k]}</span>`).join('')}
+const costTxt=c=>Object.entries(c).map(([k,q])=>(q>1?q+' ':'')+RES_ES[k]).join(' + ');
+
+function bannerText(onScreen){
+  const S=G,pi=onScreen?-1:myIdx(),cur=S.players[S.cur],mine=S.cur===pi;
+  if(S.phase==='over')return{t:`${esc(S.players[S.winner].name)} ganó la partida`,s:'Abre una partida nueva desde el inicio para la revancha.'};
+  if(S.phase==='setup'){const r=S.si<S.players.length?'primer':'segundo',what=S.ck&&S.si>=S.players.length?'tu ciudad':`tu ${r} poblado`;
+    if(!mine)return{t:`${esc(cur.name)} hace su colocación inicial`,s:'Colocación en serpiente.'};
+    return S.step==='setS'?{t:`Coloca ${what}`,s:S.si>=S.players.length?'Recibes los recursos de las losetas que toca.':'Toca un punto amarillo del mapa.'}:{t:'Coloca un camino junto a lo que pusiste',s:MODES[S.mode].ships?'Si la orilla da al mar, puedes poner un barco.':'Toca un tramo amarillo.'};
+  }
+  const st=S.step;
+  if(st==='discard'){const n=S.discards[pi];return n?{t:`Descarta ${n} cartas`,s:'Salió 7 y tienes demasiadas cartas.'}:{t:'Esperando descartes',s:'Salió 7.'}}
+  if(st==='gold')return S.gold[pi]?{t:'Elige tus recursos',s:'Por oro o por tu acueducto.'}:{t:'Otros eligen recursos',s:''};
+  if(!mine){
+    const m={roll:'va a tirar los dados',main:'está jugando su turno',robber:'mueve al ladrón',steal:'elige a quién robar'}[st]||'juega';
+    return{t:`${esc(cur.name)} ${m}`,s:''};
+  }
+  if(st==='roll')return{t:'Tu turno: tira los dados',s:S.ck?'Si tienes el Alquimista, juégalo antes de tirar.':'Puedes jugar un Caballero antes de tirar.'};
+  if(st==='robber')return{t:S.bishop?'Obispo: mueve al ladrón':'Mueve al ladrón',s:S.bishop?'Robarás 1 carta a cada jugador junto a la loseta.':'Toca una loseta. Le robarás a alguien que tenga construcción ahí.'};
+  if(st==='steal')return{t:'Elige a quién robarle',s:''};
+  const extras=[];if(S.free)extras.push(`${S.free} camino(s) gratis`);if(S.freeKnight)extras.push(`un caballero ${KNAME[S.freeKnight]} gratis`);if(S.tf?.smith)extras.push(`${S.tf.smith} promoción(es) gratis`);if(S.tf?.engineer)extras.push('una muralla gratis');if(S.tf?.crane)extras.push('mejora con descuento');if(S.tf?.medicine)extras.push('ciudad con descuento');
+  return{t:'Tu turno: construye, comercia o termina',s:extras.length?'Tienes: '+extras.join(', ')+'.':''};
+}
+
+function barbHtml(){
+  const S=G,cities=Object.values(S.build).filter(b=>b.t==='city').length;
+  const def=Object.values(S.knights||{}).filter(k=>k.active).reduce((s,k)=>s+k.lvl,0);
+  const pos=S.barb||0;
+  return`<div class="barb"><div class="row" style="justify-content:space-between"><span class="lbl">Bárbaros</span><span class="small"><b>${cities}</b> ciudades contra <b>${def}</b> de defensa</span></div>
+  <div class="track">${Array.from({length:8},(_,i)=>`<span class="${i===pos?'ship':i===7?'land':''}">${i===pos?'barco':i===7?'isla':i}</span>`).join('')}</div>
+  <div class="small muted">${7-pos} barco(s) más y atacan. Si la defensa es menor, quien menos aporte pierde una ciudad (las metrópolis no).${S.attacked?'':' El ladrón no se mueve hasta el primer ataque.'}</div></div>`;
+}
+function impHtml(P,pi,mine){
+  const S=G,hasCity=Object.values(S.build).some(b=>b.p===pi&&b.t==='city');
+  return`<div><div class="lbl" style="margin-bottom:6px">Mejoras de ciudad</div><div class="imps">${TRACKS.map(tr=>{
+    const lv=P.imp[tr],cost=Math.max(0,lv+1-(S.tf?.crane?1:0)),com=TRACK_COM[tr];
+    const ok=mine&&S.step==='main'&&hasCity&&lv<5&&P.res[com]>=cost;
+    const holder=S.metro[tr];
+    return`<div class="imp imp-${tr}"><div style="min-width:0"><div class="nm">${TRACK_ES[tr]} <span class="small muted">nivel ${lv}${holder!=null?` · metrópolis: ${esc(S.players[holder].name)}`:''}</span></div>
+    <div class="pips">${[1,2,3,4,5].map(i=>`<i class="${i<=lv?'f':''}"></i>`).join('')}</div>
+    <div class="small muted">${lv>=3?TRACK_L3[tr]:'Nivel 3: '+TRACK_L3[tr]}</div></div>
+    ${lv<5&&mine?`<button data-imp="${tr}" ${ok?'':'disabled'}>Subir<br><small style="font-weight:400">${cost} ${RES_ES[com]}</small></button>`:''}</div>`}).join('')}</div>
+    <p class="small muted" style="margin:6px 0 0">Sacas cartas de progreso de un color cuando sale su puerta y el dado rojo es menor o igual a tu nivel + 1. ${hasCity?'':'Necesitas una ciudad para mejorar.'}</p></div>`;
+}
+
+function viewBar(pi){
+  const opts=pi>=0?['screen','control','player']:['screen','player'];
+  return`<div class="viewbar" role="tablist" aria-label="Vista">${opts.map(v=>`<button data-view="${v}" class="${viewOf()===v?'on':''}">${VIEW_ES[v]}</button>`).join('')}</div>`;
+}
+function renderScreen(){
+  const S=G,B=board(S),K=keysOf(S),bt=bannerText(true);
+  const playersHtml=S.players.map((p,i)=>{
+    const ks=Object.values(S.knights||{}).filter(k=>k.p===i),kact=ks.filter(k=>k.active).reduce((s,k)=>s+k.lvl,0);
+    const stats=S.ck?`${sumRes(p.res)} cartas · ${p.prog.length} progreso · defensa ${kact} · ruta ${S.roadLen?.[i]||0} · <span style="color:var(--t-trade)">C${p.imp.trade}</span> <span style="color:var(--t-politics)">P${p.imp.politics}</span> <span style="color:var(--t-science)">S${p.imp.science}</span>`
+      :`${sumRes(p.res)} cartas · ${(p.dev||[]).length+(p.newDev||[]).length} desarrollo · ${p.knights} caballeros · ruta ${S.roadLen?.[i]||0}`;
+    return`<div class="pl ${S.cur===i&&S.phase!=='over'?'cur':''}"><span class="dot" style="background:${COLORS[p.color].c}"></span>
+    <div style="min-width:0"><div class="nm">${esc(p.name)}${S.longest===i?'<span class="badge">Ruta</span>':''}${S.army===i?'<span class="badge">Ejército</span>':''}</div><div class="st">${stats}</div></div>
+    <div class="vp">${vpOf(S,i,S.phase==='over')}</div></div>`}).join('');
+  const o=S.offer;
+  $('#sheet').innerHTML='';
+  $('#app').innerHTML=`
+  <div class="top"><div class="row"><button id="back">← Salir</button><h2>Hexterra</h2>${netPill()}</div>${viewBar(myIdx())}</div>
+  <div class="scr">
+    <div class="boardcol"><div class="boardbox">${boardSvg(true)}</div></div>
+    <div class="side">
+      <div class="banner">${S.dice?`<div class="dice">${dieSvg(S.dice[0])}${dieSvg(S.dice[1],S.ck)}${S.ck&&S.event?eventSvg(S.event):''}</div>`:''}
+        <div><div class="t">${bt.t}</div>${bt.s?`<div class="small muted">${bt.s}</div>`:''}</div></div>
+      ${S.ck?barbHtml():''}
+      ${o?`<div class="offer"><div class="lbl">${esc(S.players[o.from].name)} propone</div><div class="row small"><span>Da:</span><span class="chips">${chipList(o.give)}</span></div><div class="row small"><span>Pide:</span><span class="chips">${chipList(o.get)}</span></div>${o.acc.length?`<div class="small">Aceptan: ${o.acc.map(i=>esc(S.players[i].name)).join(', ')}</div>`:''}</div>`:''}
+      <div class="players">${playersHtml}</div>
+      <div class="log">${S.log.slice(-10).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div>
+      <div class="joinhint"><span class="code">${S.code}</span><span class="small muted">${esc(modeName(S))} · gana con ${targetOf(S)}. Si un teléfono se desconecta, vuelve a entrar con este código.</span></div>
+    </div>
+  </div>`;
+  $('#back').onclick=closeGame;
+  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+}
+function renderGame(){
+  const view=viewOf();
+  if(view==='screen'||myIdx()<0&&view!=='player')return renderScreen();
+  const ctrl=view==='control';
+  const S=G,B=board(S),M=MODES[S.mode],pi=myIdx(),P=S.players[pi],mine=S.cur===pi&&S.phase==='play',K=keysOf(S);
+  const T0=targets(),needBoard=T0.v.length+T0.e.length+T0.h.length>0,showBoard=!ctrl||needBoard||U.showBoard;
+  const bt=bannerText();
+  const playersHtml=S.players.map((p,i)=>{
+    const cards=sumRes(p.res),devs=(p.dev||[]).length+(p.newDev||[]).length;
+    const vp=vpOf(S,i,i===pi);
+    const ks=Object.values(S.knights||{}).filter(k=>k.p===i),kact=ks.filter(k=>k.active).reduce((s,k)=>s+k.lvl,0);
+    const stats=S.ck?`${cards} cartas · ${p.prog.length} progreso · caballeros ${kact}/${ks.reduce((s,k)=>s+k.lvl,0)} activos · ruta ${S.roadLen?.[i]||0} · <span style="color:var(--t-trade)">C${p.imp.trade}</span> <span style="color:var(--t-politics)">P${p.imp.politics}</span> <span style="color:var(--t-science)">S${p.imp.science}</span>`
+      :`${cards} cartas · ${devs} desarrollo · ${p.knights} caballeros · ruta ${S.roadLen?.[i]||0}`;
+    return`<div class="pl ${S.cur===i&&S.phase!=='over'?'cur':''}"><span class="dot" style="background:${COLORS[p.color].c}"></span>
+    <div style="min-width:0"><div class="nm">${esc(p.name)}${i===pi?' <span class="muted small">(tú)</span>':''}${S.longest===i?'<span class="badge">Ruta</span>':''}${S.army===i?'<span class="badge">Ejército</span>':''}${(p.vpc||[]).filter(x=>x==='defender').length?`<span class="badge">Defensor ×${p.vpc.filter(x=>x==='defender').length}</span>`:''}</div>
+    <div class="st">${stats}${p.islands?.length?` · ${p.islands.length} isla(s)`:''}</div></div>
+    <div class="vp" title="Puntos">${vp}</div></div>`}).join('');
+  let main='';
+  if(P){
+    const can=k=>hasRes(P.res,COST[k]);
+    const pcs=countPieces(S,pi);
+    main+=`<div><div class="lbl" style="margin-bottom:6px">Tu mano${S.ck?` · límite ${handLimit(S,pi)} cartas`:''}</div><div class="hand">${K.map(k=>`<div class="rc r-${k}"><div class="n">${P.res[k]}</div><div class="k">${RES_ES[k]}</div></div>`).join('')}</div></div>`;
+    if(S.offer)main+=offerHtml(pi);
+    if(U.mode)main+=`<div class="modebar"><span>${MODE_ES[U.mode==='kmove'&&U.kfrom!=null?'kmove2':U.mode]}</span><button id="cmode">Cancelar</button></div>`;
+    if(mine){
+      if(S.step==='roll'){main+=`<div class="acts"><button class="pri wide" id="roll">Tirar dados</button>${S.free?`<button data-bm="road" class="${U.mode==='road'?'on':''}">Camino gratis</button>`:''}</div>`}
+      else if(S.step==='main'){
+        const free=S.free>0;
+        const b=(k,label,sub,en)=>`<button data-bm="${k}" class="${U.mode===k?'on':''}" ${en?'':'disabled'}>${label}<small>${sub}</small></button>`;
+        main+=`<div class="acts">
+        ${b('road','Camino',(free?'gratis':costTxt(COST.road))+` · quedan ${15-pcs.road}`,(free||can('road'))&&pcs.road<15)}
+        ${M.ships?b('ship','Barco',(free?'gratis':costTxt(COST.ship))+` · quedan ${15-pcs.ship}`,(free||can('ship'))&&pcs.ship<15):''}
+        ${b('settlement','Poblado',costTxt(COST.settlement),can('settlement')&&pcs.settlement<5)}
+        ${b('city','Ciudad',S.tf?.medicine?'2 Mineral + Trigo (Medicina)':costTxt(COST.city),(S.tf?.medicine?hasRes(P.res,{ore:2,wheat:1}):can('city'))&&pcs.city<4)}
+        ${S.ck?`
+        ${b('knight','Caballero',S.freeKnight?`gratis (${KNAME[S.freeKnight]})`:costTxt(COST.knight)+` · básicos ${pcs.k1}/2`,(S.freeKnight||can('knight')))}
+        ${b('activate','Activar caballero',costTxt(COST.activate),can('activate')&&Object.values(S.knights).some(k=>k.p===pi&&!k.active))}
+        ${b('promote','Promover caballero',S.tf?.smith?`gratis ×${S.tf.smith}`:costTxt(COST.promote),(S.tf?.smith||can('promote'))&&Object.values(S.knights).some(k=>k.p===pi&&k.lvl<3))}
+        ${b('kmove','Mover caballero','activo; desplaza a uno más débil',Object.keys(S.knights).some(v=>knightCanAct(S,+v,pi)))}
+        ${b('kchase','Ahuyentar ladrón','caballero activo junto al ladrón',S.attacked&&Object.keys(S.knights).some(v=>knightCanAct(S,+v,pi)&&B.hexes[S.robber].v.includes(+v)))}
+        ${b('wall','Muralla',(S.tf?.engineer?'gratis':costTxt(COST.wall))+` · +2 al límite · ${pcs.wall}/3`,(S.tf?.engineer||can('wall'))&&pcs.wall<3&&Object.values(S.build).some(x=>x.p===pi&&x.t==='city'&&!x.wall))}
+        `:`<button id="buy" ${can('dev')&&S.deck.length?'':'disabled'}>Carta de desarrollo<small>${costTxt(COST.dev)} · ${S.deck.length} en mazo</small></button>`}
+        <button id="trade" ${S.offer?'disabled':''}>Comerciar<small>banco, puertos o jugadores</small></button>
+        <button class="pri wide" id="end">Terminar turno</button></div>`;
+      }
+    }
+    if(S.ck){
+      main+=impHtml(P,pi,mine);
+      if(P.prog.length||P.vpc.length){
+        main+=`<div><div class="lbl" style="margin-bottom:6px">Tus cartas de progreso (${P.prog.length}/4)</div><div class="devs">${P.prog.map((c,j)=>{
+          const D=PROG[c],ok=S.cur===pi&&S.phase==='play'&&(c==='alchemist'?S.step==='roll':S.step==='main');
+          return`<div class="dev pc pc-${D.c}"><div><b>${D.es}</b><div class="d">${D.d}</div></div><button data-prog="${c}" ${ok?'':'disabled'}>Jugar</button></div>`}).join('')}
+          ${P.vpc.length?`<div class="small muted">Puntos guardados: ${P.vpc.map(c=>c==='defender'?'Defensor':PROG[c].es).join(', ')}</div>`:''}</div></div>`;
+      }
+    }else{
+      const all=[...P.dev.map(d=>({d,n:false})),...P.newDev.map(d=>({d,n:true}))];
+      if(all.length){
+        const grp={};all.forEach(x=>{const k=x.d+(x.n?'*':'');grp[k]=(grp[k]||0)+1});
+        main+=`<div><div class="lbl" style="margin-bottom:6px">Tus cartas de desarrollo</div><div class="devs">${Object.entries(grp).map(([k,q])=>{const n=k.endsWith('*'),d=k.replace('*','');
+          const ok=!n&&d!=='vp'&&S.cur===pi&&S.phase==='play'&&!S.devPlayed&&(d==='knight'?['roll','main'].includes(S.step):S.step==='main');
+          return`<div class="dev"><span><b>${DEV_ES[d]}</b>${q>1?` ×${q}`:''}${n?' <span class="small muted">· nueva, se juega el próximo turno</span>':d==='vp'?' <span class="small muted">· +1 punto oculto</span>':''}</span>${d!=='vp'?`<button data-play="${d}" ${ok?'':'disabled'}>Jugar</button>`:''}</div>`}).join('')}</div></div>`;
+      }
+    }
+  }else main+=`<div class="notice small">Estás mirando la partida. No eres parte de ella.</div>`;
+  const costs=S.ck?`Costos: camino = Madera + Arcilla · poblado = Madera + Arcilla + Lana + Trigo · ciudad = 2 Trigo + 3 Mineral · caballero o promoción = Lana + Mineral · activar = Trigo · muralla = 2 Arcilla${M.ships?' · barco = Madera + Lana':''}. Las ciudades en bosque, pradera y montaña dan además Papel, Tela o Moneda. Metrópolis = +2 puntos.`
+    :`Costos: camino = Madera + Arcilla · poblado = Madera + Arcilla + Lana + Trigo · ciudad = 2 Trigo + 3 Mineral · carta = Lana + Trigo + Mineral${M.ships?' · barco = Madera + Lana':''}. Ruta más larga y ejército más grande valen 2 puntos.`;
+  $('#app').innerHTML=`
+  <div class="top"><div class="row"><button id="back">← Inicio</button><h2>Hexterra</h2><span class="muted small"><span class="code">${S.code}</span> · gana con ${targetOf(S)}</span>${netPill()}</div>
+    ${viewBar(pi)}</div>
+  ${ctrl?`<div class="side" style="max-width:640px;margin:0 auto">
+    ${showBoard?`<div class="boardbox ${needBoard?'ctrlboard':''}" id="board">${boardSvg()}</div>`:''}
+    ${needBoard?'':`<button id="tgb">${U.showBoard?'Ocultar tablero':'Ver tablero en mi teléfono'}</button>`}`
+  :`<div class="game">
+    <div class="boardcol"><div class="boardbox" id="board">${boardSvg()}</div>${S.ck?barbHtml():''}</div>
+    <div class="side">`}
+      <div class="banner ${(S.cur===pi||(S.step==='discard'&&S.discards?.[pi])||(S.step==='gold'&&S.gold?.[pi]))&&S.phase!=='over'?'me':''}">
+        ${S.dice?`<div class="dice">${dieSvg(S.dice[0])}${dieSvg(S.dice[1],S.ck)}${S.ck&&S.event?eventSvg(S.event):''}</div>`:''}
+        <div><div class="t ${S.phase==='over'?'win':''}">${bt.t}</div>${bt.s?`<div class="small muted">${bt.s}</div>`:''}</div>
+      </div>
+      ${main}
+      <div><div class="lbl" style="margin-bottom:6px">Jugadores</div><div class="players">${playersHtml}</div></div>
+      <div><div class="lbl" style="margin-bottom:6px">Bitácora</div><div class="log">${S.log.slice(-14).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div></div>
+      ${ctrl&&S.ck?barbHtml():''}
+      <p class="small muted" style="margin:0">Banco: ${K.map(k=>`${RES_ES[k].slice(0,3)} ${S.bank[k]}`).join(' · ')}</p>
+      <p class="small muted" style="margin:0">${costs}${M.ships?' Cada isla nueva colonizada da 2 puntos.':''}</p>
+    </div>
+  ${ctrl?'':'</div>'}`;
+  $('#back').onclick=closeGame;
+  if($('#board'))$('#board').onclick=boardClick;
+  if($('#tgb'))$('#tgb').onclick=()=>{U.showBoard=!U.showBoard;renderGame()};
+  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+  if($('#roll'))$('#roll').onclick=()=>send({t:'roll'});
+  if($('#end'))$('#end').onclick=()=>send({t:'end'});
+  if($('#buy'))$('#buy').onclick=()=>send({t:'buyDev'});
+  if($('#cmode'))$('#cmode').onclick=()=>{U.mode=null;U.kfrom=null;U.inv=[];U.pcard=null;renderGame()};
+  if($('#trade'))$('#trade').onclick=()=>{U.sheet='trade';U.tab='bank';U.bg=null;U.bt=null;U.tg={};U.tr={};renderSheet()};
+  document.querySelectorAll('[data-bm]').forEach(b=>b.onclick=()=>{U.mode=U.mode===b.dataset.bm?null:b.dataset.bm;U.kfrom=null;renderGame()});
+  document.querySelectorAll('[data-imp]').forEach(b=>b.onclick=()=>send({t:'improve',track:b.dataset.imp}));
+  document.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>{const d=b.dataset.play;
+    if(d==='plenty'){U.sheet='plenty';U.pd={};renderSheet()}else if(d==='mono'){U.sheet='mono';renderSheet()}else send({t:'play',card:d})});
+  document.querySelectorAll('[data-prog]').forEach(b=>b.onclick=()=>playProg(b.dataset.prog));
+  document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>send({t:b.dataset.acc==='1'?'accept':'reject'}));
+  document.querySelectorAll('[data-conf]').forEach(b=>b.onclick=()=>send({t:'confirm',p:+b.dataset.conf}));
+  if($('#cxl'))$('#cxl').onclick=()=>send({t:'cancelOffer'});
+  renderSheet();
+}
+function playProg(c){
+  const need=PROG[c].need;U.pcard=c;
+  if(!need)return send({t:'prog',card:c});
+  if(need==='hex2'){U.mode='inventor';U.inv=[];return renderGame()}
+  if(need==='edge'){U.mode='diplomat';return renderGame()}
+  if(need==='knight'){U.mode='intrigue';return renderGame()}
+  if(need==='hex'){U.mode='merchant';return renderGame()}
+  U.sheet='prog';renderSheet();
+}
+function offerHtml(pi){
+  const o=G.offer,from=G.players[o.from];
+  let h=`<div class="offer"><div class="lbl">Oferta de ${esc(from.name)}</div><div class="row small"><span>Da:</span><span class="chips">${chipList(o.give)}</span></div><div class="row small"><span>Pide:</span><span class="chips">${chipList(o.get)}</span></div>`;
+  if(o.from===pi){
+    h+=o.acc.length?`<div class="row">${o.acc.map(i=>`<button class="pri" data-conf="${i}">Cambiar con ${esc(G.players[i].name)}</button>`).join('')}</div>`:`<div class="small muted">Esperando respuestas…${o.rej.length?` ${o.rej.map(i=>esc(G.players[i].name)).join(', ')} no quiere(n).`:''}</div>`;
+    h+=`<button id="cxl">Retirar oferta</button>`;
+  }else if(pi>=0){
+    const can=hasRes(G.players[pi].res,o.get),acc=o.acc.includes(pi),rej=o.rej.includes(pi);
+    h+=`<div class="row"><button class="pri" data-acc="1" ${can&&!acc?'':'disabled'}>${acc?'Aceptada':'Aceptar'}</button><button data-acc="0" ${rej?'disabled':''}>${rej?'Rechazada':'No, gracias'}</button>${can?'':'<span class="small muted">No tienes lo que pide.</span>'}</div>`;
+  }
+  return h+'</div>';
+}
+function boardClick(ev){
+  const t=ev.target.closest('.tgt');if(!t||!G)return;
+  const S=G,B=board(S),m=U.mode;
+  if(t.dataset.h!=null){const h=+t.dataset.h;
+    if(m==='inventor'){U.inv.push(h);if(U.inv.length===2)return send({t:'prog',card:'inventor',hs:U.inv});return renderGame()}
+    if(m==='merchant')return send({t:'prog',card:'merchant',h});
+    return send({t:'robber',h});}
+  if(t.dataset.v!=null){const v=+t.dataset.v;
+    if(S.phase==='setup')return send({t:'setS',v});
+    if(m==='settlement'||m==='city')return send({t:'build',kind:m,v});
+    if(m==='knight'||m==='activate'||m==='promote'||m==='wall'||m==='kchase')return send({t:m,v});
+    if(m==='kmove'){if(U.kfrom==null){U.kfrom=v;return renderGame()}return send({t:'kmove',v:U.kfrom,to:v})}
+    if(m==='intrigue')return send({t:'prog',card:'intrigue',v});
+    return;}
+  if(t.dataset.e!=null){const e=+t.dataset.e,pi=myIdx();
+    if(S.phase==='setup'){const r=canLine(S,B,e,pi,'road',S.lastV);return send({t:'setR',e,kind:r?'road':'ship'})}
+    if(m==='diplomat')return send({t:'prog',card:'diplomat',e});
+    return send({t:'build',kind:m,e});}
+}
+
+/* ---------- sheets ---------- */
+function stepper(id,label,val,cls){return`<div class="stp"><span><span class="chip r-${cls}">${label}</span></span><button data-dn="${id}">−</button><span class="q">${val}</span><button data-up="${id}">+</button></div>`}
+function renderSheet(){
+  const box=$('#sheet');if(!G||G.phase==='lobby'){box.innerHTML='';return}
+  const S=G,B=board(S),pi=myIdx(),P=S.players[pi],K=keysOf(S);
+  let h='',kind=null;
+  if(P&&S.step==='discard'&&S.discards?.[pi]){kind='discard'}
+  else if(P&&S.step==='gold'&&S.gold?.[pi]){kind='gold'}
+  else if(P&&S.step==='steal'&&S.cur===pi){kind='steal'}
+  else if(P&&U.sheet&&S.cur===pi&&(S.step==='main'||(U.sheet==='prog'&&U.pcard==='alchemist'&&S.step==='roll')))kind=U.sheet;
+  else U.sheet=null;
+  if(!kind){box.innerHTML='';return}
+  if(kind==='discard'){
+    const need=S.discards[pi],d=U.dd,tot=sumRes(d);
+    h=`<h3>Descarta ${need} cartas</h3><p class="muted small" style="margin:0">Llevas ${tot} de ${need}.</p><div class="steps">${K.map(k=>stepper('dd.'+k,`${RES_ES[k]} (tienes ${P.res[k]})`,d[k]||0,k)).join('')}</div><button class="pri" id="ok" ${tot===need?'':'disabled'}>Descartar</button>`;
+  }else if(kind==='gold'){
+    const need=Math.min(S.gold[pi],RES.reduce((s,k)=>s+S.bank[k],0)),d=U.gd,tot=sumRes(d);
+    h=`<h3>Elige ${need} recurso(s)</h3><div class="steps">${RES.map(k=>stepper('gd.'+k,RES_ES[k],d[k]||0,k)).join('')}</div><button class="pri" id="ok" ${tot===need?'':'disabled'}>Tomar</button>`;
+  }else if(kind==='steal'){
+    h=`<h3>¿A quién le robas?</h3><div class="row">${S.victims.map(i=>`<button class="pri" data-st="${i}">${esc(S.players[i].name)} · ${sumRes(S.players[i].res)} cartas</button>`).join('')}</div>`;
+  }else if(kind==='plenty'){
+    const d=U.pd,tot=sumRes(d);
+    h=`<h3>Año de abundancia: toma 2 del banco</h3><div class="steps">${RES.map(k=>stepper('pd.'+k,`${RES_ES[k]} (banco ${S.bank[k]})`,d[k]||0,k)).join('')}</div><div class="row"><button class="pri" id="ok" ${tot===2?'':'disabled'}>Tomar</button><button id="x">Cancelar</button></div>`;
+  }else if(kind==='mono'){
+    h=`<h3>Monopolio: todos te dan un recurso</h3><div class="row">${RES.map(k=>`<button data-mono="${k}" class="chip r-${k}" style="padding:10px 14px;font-size:14px">${RES_ES[k]}</button>`).join('')}</div><button id="x">Cancelar</button>`;
+  }else if(kind==='prog'){
+    const c=U.pcard,D=PROG[c],myVP=vpOf(S,pi,false);
+    h=`<h3>${D.es}</h3><p class="small muted" style="margin:0">${D.d}</p>`;
+    if(D.need==='dice'){
+      const dsel=(id,val)=>`<div class="row">${[1,2,3,4,5,6].map(n=>`<button data-alc="${id}.${n}" class="${val===n?'on':''}">${n}</button>`).join('')}</div>`;
+      h+=`<div class="lbl">Dado blanco</div>${dsel('w',U.alc.w)}<div class="lbl">Dado rojo</div>${dsel('r',U.alc.r)}<div class="row"><button class="pri" id="okp">Tirar ${U.alc.w+U.alc.r}</button><button id="x">Cancelar</button></div>`;
+    }else if(D.need==='player'){
+      const opp=S.players.map((p,j)=>j).filter(j=>j!==pi&&(c!=='mmerchant'||vpOf(S,j,false)>myVP)&&(c!=='spy'||S.players[j].prog.length)&&(c!=='deserter'||Object.values(S.knights).some(k=>k.p===j)));
+      h+=opp.length?`<div class="row">${opp.map(j=>`<button class="pri" data-pp="${j}">${esc(S.players[j].name)}</button>`).join('')}</div>`:`<p class="small">Nadie cumple la condición ahora.</p>`;
+      h+=`<button id="x">Cancelar</button>`;
+    }else{
+      const list=D.need==='com'?COM:D.need==='res'?RES:ALL;
+      h+=`<div class="row">${list.map(k=>`<button data-pr="${k}" class="chip r-${k}" style="padding:10px 14px;font-size:14px">${RES_ES[k]}</button>`).join('')}</div><button id="x">Cancelar</button>`;
+    }
+  }else if(kind==='trade'){
+    h=`<h3>Comerciar</h3><div class="tabs"><button class="${U.tab==='bank'?'on':''}" data-tab="bank">Banco y puertos</button><button class="${U.tab==='pl'?'on':''}" data-tab="pl">Con jugadores</button></div>`;
+    if(U.tab==='bank'){
+      h+=`<div class="lbl">Das</div><div class="row">${K.map(k=>{const r=ratioFor(S,B,pi,k);return`<button data-bg="${k}" class="${U.bg===k?'on':''}" ${P.res[k]>=r?'':'disabled'}>${r} ${RES_ES[k]}</button>`}).join('')}</div>
+      <div class="lbl">Recibes 1</div><div class="row">${K.map(k=>`<button data-bt="${k}" class="${U.bt===k?'on':''}" ${S.bank[k]&&k!==U.bg?'':'disabled'}>${RES_ES[k]}</button>`).join('')}</div>
+      <div class="row"><button class="pri" id="okb" ${U.bg&&U.bt&&U.bg!==U.bt?'':'disabled'}>Cambiar</button><button id="x">Cerrar</button></div>
+      <p class="small muted" style="margin:0">Sin puerto cambias 4 a 1. Un puerto 3:1 o de recurso 2:1 baja el precio si tienes un poblado o ciudad en él.${S.ck?' La Casa de comercio da mercancías 2:1.':''}</p>`;
+    }else{
+      const g=U.tg,r=U.tr;
+      h+=`<div class="lbl">Das</div><div class="steps">${K.map(k=>stepper('tg.'+k,`${RES_ES[k]} (tienes ${P.res[k]})`,g[k]||0,k)).join('')}</div>
+      <div class="lbl">Pides</div><div class="steps">${K.map(k=>stepper('tr.'+k,RES_ES[k],r[k]||0,k)).join('')}</div>
+      <div class="row"><button class="pri" id="okt" ${sumRes(g)&&sumRes(r)&&hasRes(P.res,g)?'':'disabled'}>Proponer a todos</button><button id="x">Cerrar</button></div>`;
+    }
+  }
+  box.innerHTML=`<div class="veil" id="veil"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`;
+  const lim=(grp,k)=>grp==='dd'||grp==='tg'?P.res[k]:grp==='pd'?Math.min(2,S.bank[k]):grp==='gd'?S.bank[k]:9;
+  const cap={dd:S.discards?.[pi],gd:S.gold?.[pi],pd:2};
+  box.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{const[g,k]=b.dataset.up.split('.');const o=U[g];if((o[k]||0)<lim(g,k)&&(cap[g]==null||sumRes(o)<cap[g]))o[k]=(o[k]||0)+1;renderSheet()});
+  box.querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{const[g,k]=b.dataset.dn.split('.');const o=U[g];if(o[k])o[k]--;renderSheet()});
+  const close=()=>{U.sheet=null;U.pcard=null;renderSheet()};
+  if($('#x'))$('#x').onclick=close;
+  $('#veil').onclick=e=>{if(e.target.id==='veil'&&['trade','plenty','mono','prog'].includes(kind))close()};
+  const clean=o=>Object.fromEntries(Object.entries(o).filter(([k,q])=>q>0));
+  if($('#ok'))$('#ok').onclick=async()=>{
+    if(kind==='discard'){await send({t:'discard',res:clean(U.dd)});U.dd={}}
+    if(kind==='gold'){await send({t:'gold',res:clean(U.gd)});U.gd={}}
+    if(kind==='plenty'){const arr=RES.flatMap(k=>Array(U.pd[k]||0).fill(k));U.sheet=null;await send({t:'play',card:'plenty',res:arr});U.pd={}}
+  };
+  box.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>send({t:'steal',p:+b.dataset.st}));
+  box.querySelectorAll('[data-mono]').forEach(b=>b.onclick=()=>{U.sheet=null;send({t:'play',card:'mono',res:b.dataset.mono})});
+  box.querySelectorAll('[data-alc]').forEach(b=>b.onclick=()=>{const[d,n]=b.dataset.alc.split('.');U.alc[d]=+n;renderSheet()});
+  if($('#okp'))$('#okp').onclick=()=>{U.sheet=null;send({t:'prog',card:'alchemist',w:U.alc.w,r:U.alc.r})};
+  box.querySelectorAll('[data-pp]').forEach(b=>b.onclick=()=>{const c=U.pcard;U.sheet=null;send({t:'prog',card:c,p:+b.dataset.pp})});
+  box.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{const c=U.pcard;U.sheet=null;send({t:'prog',card:c,res:b.dataset.pr})});
+  box.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{U.tab=b.dataset.tab;renderSheet()});
+  box.querySelectorAll('[data-bg]').forEach(b=>b.onclick=()=>{U.bg=b.dataset.bg;if(U.bt===U.bg)U.bt=null;renderSheet()});
+  box.querySelectorAll('[data-bt]').forEach(b=>b.onclick=()=>{U.bt=b.dataset.bt;renderSheet()});
+  if($('#okb'))$('#okb').onclick=async()=>{await send({t:'bank',give:U.bg,get:U.bt});U.bg=null;U.bt=null;if(U.sheet)renderSheet()};
+  if($('#okt'))$('#okt').onclick=()=>{const a={t:'offer',give:clean(U.tg),get:clean(U.tr)};U.sheet=null;send(a)};
+}
+
+/* ---------- boot ---------- */
+(function boot(){
+  const c=(new URLSearchParams(location.search).get('c')||'').toUpperCase();
+  if(/^[A-Z]{5}$/.test(c)){U.pre=c;history.replaceState(null,'',location.pathname);if(U.name.trim()){U.pre=null;joinRemote(c);return}}
+  renderHome();
+})();
+</script>
+</body>
+</html>
