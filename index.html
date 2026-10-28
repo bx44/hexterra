@@ -319,6 +319,18 @@ button.pri,.db.pri{--btn:var(--accent)}
 .rpick.sm .rp{padding:6px 2px}
 .rpick.sm .rp svg{width:26px;height:26px}
 .rp:disabled{opacity:.3}
+.flycard{position:fixed;left:0;top:0;border-radius:8px;display:grid;place-items:center;border:2px solid rgba(255,255,255,.9);box-shadow:0 8px 18px rgba(0,0,0,.28);z-index:70;pointer-events:none;will-change:transform,opacity}
+.flycard svg{width:64%;height:auto}
+.dbadge{position:fixed;transform:translate(-50%,-50%);font-family:var(--f-display);font-weight:800;font-size:17px;line-height:1;padding:4px 9px;border-radius:99px;color:#fff;z-index:71;pointer-events:none;box-shadow:0 3px 10px rgba(0,0,0,.25);animation:badge 1.3s ease-out forwards}
+.dbadge.up{background:#2f8f4a}
+.dbadge.down{background:#b4372a}
+@keyframes badge{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-90%) scale(1.1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-190%) scale(1)}}
+.bump{animation:bump .38s ease-out}
+@keyframes bump{40%{transform:scale(1.15)}100%{transform:scale(1)}}
+.dip{animation:dip .42s ease-out}
+@keyframes dip{30%{transform:translateY(5px) scale(.9)}100%{transform:none}}
+.st span{display:inline-flex}
+@media (prefers-reduced-motion:reduce){.bump,.dip{animation-duration:.01s}.dbadge{animation-duration:1.3s}}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -1838,7 +1850,7 @@ function myChip(pi){
 }
 function handHtml(P,mini){
   const K=keysOf(G);
-  return`<div class="hand ${mini?'mini':''} ${K.length>5?'h8':''}">${K.map(k=>`<div class="rc r-${k} ${P.res[k]?'':'zero'}" title="${RES_ES[k]}">${resGlyph(k)}<b>${P.res[k]}</b>${mini?'':`<span>${RES_ES[k]}</span>`}</div>`).join('')}</div>`;
+  return`<div class="hand ${mini?'mini':''} ${K.length>5?'h8':''}">${K.map(k=>`<div class="rc r-${k} ${P.res[k]?'':'zero'}" data-k="${k}" title="${RES_ES[k]}">${resGlyph(k)}<b>${P.res[k]}</b>${mini?'':`<span>${RES_ES[k]}</span>`}</div>`).join('')}</div>`;
 }
 function dockBtn(id,icon,label,opt){
   opt=opt||{};
@@ -1894,7 +1906,7 @@ function renderScreen(){
     const ks=Object.values(S.knights||{}).filter(k=>k.p===i),kact=ks.filter(k=>k.active).reduce((s,k)=>s+k.lvl,0);
     return`<div class="pl ${S.cur===i&&S.phase!=='over'?'cur':''}"><span class="dot" style="background:${COLORS[p.color].c}"></span>
     <div class="pm"><div class="nm">${esc(p.name)}${p.bot?`<span class="tag bot">bot</span>`:''}${S.longest===i?`<span class="tag">${ic('road',12)} ruta</span>`:''}${S.army===i?`<span class="tag">${ic('knight',12)} ejército</span>`:''}</div>
-    <div class="st"><span class="${sumRes(p.res)>handLimit(S,i)?'warn':''}">${ic('cards',14)} ${sumRes(p.res)}</span>${S.ck?`<span>${ic('dev',14)} ${p.prog.length}</span><span>${ic('knight',14)} ${kact}</span><span class="tr"><i style="background:${TCOL.trade}">${p.imp.trade}</i><i style="background:${TCOL.politics}">${p.imp.politics}</i><i style="background:${TCOL.science}">${p.imp.science}</i></span>`:`<span>${ic('dev',14)} ${(p.dev||[]).length+(p.newDev||[]).length}</span><span>${ic('knight',14)} ${p.knights}</span>`}<span>${ic('road',14)} ${S.roadLen?.[i]||0}</span></div></div>
+    <div class="st"><span data-cc="${p.id}" class="${sumRes(p.res)>handLimit(S,i)?'warn':''}">${ic('cards',14)} ${sumRes(p.res)}</span>${S.ck?`<span>${ic('dev',14)} ${p.prog.length}</span><span>${ic('knight',14)} ${kact}</span><span class="tr"><i style="background:${TCOL.trade}">${p.imp.trade}</i><i style="background:${TCOL.politics}">${p.imp.politics}</i><i style="background:${TCOL.science}">${p.imp.science}</i></span>`:`<span>${ic('dev',14)} ${(p.dev||[]).length+(p.newDev||[]).length}</span><span>${ic('knight',14)} ${p.knights}</span>`}<span>${ic('road',14)} ${S.roadLen?.[i]||0}</span></div></div>
     ${emoFor(i)}<div class="vp">${vpOf(S,i,S.phase==='over')}</div></div>`}).join('');
   const o=S.offer;
   $('#sheet').innerHTML='';
@@ -1916,6 +1928,7 @@ function renderScreen(){
   if($('#pz'))$('#pz').onclick=()=>send({t:'pause'});
   tickTimers();
   if(U.sheet==='mesa')renderSheet();
+  animateCounts();
 }
 
 function noteRoll(){
@@ -1972,6 +1985,7 @@ function renderGame(){
   document.querySelectorAll('[data-conf]').forEach(b=>b.onclick=()=>send({t:'confirm',p:+b.dataset.conf}));
   tickTimers();
   renderSheet();
+  animateHand();
 }
 function playProg(c){
   const need=PROG[c].need;U.pcard=c;U.sheet=null;U.spyT=null;U.ho={};
@@ -2325,6 +2339,64 @@ function bindLobbySettings(){
     else if(k==='friendly')send({t:'config',friendly:!c.friendly});
     else if(k==='ck')send({t:'config',ck:!G.ck})});
   document.querySelectorAll('[data-cfgt]').forEach(b=>b.onclick=()=>send({t:'config',timer:+b.dataset.cfgt}));
+}
+
+/* ---------- cards flying into and out of your hand ---------- */
+const reduceMotion=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+let lastHand=null,lastCounts=null;
+function handTile(k){return document.querySelector(`.g .hand [data-k="${k}"], .gwide .hand [data-k="${k}"]`)}
+function badge(x,y,d){
+  const b=document.createElement('div');b.className='dbadge '+(d>0?'up':'down');b.textContent=(d>0?'+':'−')+Math.abs(d);
+  b.style.left=x+'px';b.style.top=y+'px';document.body.appendChild(b);setTimeout(()=>b.remove(),1400);
+}
+function pulse(el,cls){if(!el)return;el.classList.remove('bump','dip');void el.offsetWidth;el.classList.add(cls)}
+function flyCards(k,d,slot){
+  const tile=handTile(k);if(!tile)return;
+  const r=tile.getBoundingClientRect(),gain=d>0,count=Math.min(Math.abs(d),3);
+  if(!r.width)return;
+  const bx=r.left+r.width/2,by=r.top+6;
+  if(reduceMotion()){badge(bx,by,d);pulse(tile,gain?'bump':'dip');return}
+  const w=Math.max(26,Math.min(44,r.width*.62)),h=w*1.36;
+  const tx=r.left+r.width/2-w/2,ty=r.top+r.height/2-h/2;
+  const sy=Math.max(56,Math.min(r.top-200,innerHeight*.18));
+  let done=0;
+  for(let i=0;i<count;i++){
+    const c=document.createElement('div');c.className='flycard r-'+k;c.innerHTML=resGlyph(k);
+    c.style.width=w+'px';c.style.height=h+'px';document.body.appendChild(c);
+    const spread=(i-(count-1)/2)*18,delay=(slot+i)*90;
+    const kf=gain
+      ?[{transform:`translate(${innerWidth/2-w/2+spread}px,${sy}px) rotate(${spread*.8-8}deg) scale(.7)`,opacity:0},
+        {transform:`translate(${(innerWidth/2+tx)/2-w/2+spread}px,${(sy+ty)/2-30}px) rotate(${spread*.4}deg) scale(1.05)`,opacity:1,offset:.45},
+        {transform:`translate(${tx}px,${ty}px) rotate(0deg) scale(.9)`,opacity:1}]
+      :[{transform:`translate(${tx}px,${ty}px) rotate(0deg) scale(.95)`,opacity:1},
+        {transform:`translate(${tx+spread}px,${ty-70}px) rotate(${spread*.6}deg) scale(1)`,opacity:1,offset:.35},
+        {transform:`translate(${tx+spread*2.2}px,${ty-190}px) rotate(${spread*1.4}deg) scale(.6)`,opacity:0}];
+    const an=c.animate(kf,{duration:gain?560:620,delay,easing:gain?'cubic-bezier(.25,.8,.35,1)':'cubic-bezier(.45,0,.8,.5)',fill:'both'});
+    const finish=()=>{c.remove();if(gain){pulse(handTile(k),'bump');if(++done===count)badge(bx,by,d)}};
+    an.onfinish=finish;an.oncancel=()=>c.remove();
+  }
+  if(!gain){pulse(tile,'dip');badge(bx,by,d)}
+}
+function animateHand(){
+  const pi=myIdx(),P=G&&G.players[pi];
+  if(!P||!P.res){lastHand=null;return}
+  const key=G.code+':'+P.id,now={...P.res};
+  const prev=lastHand&&lastHand.key===key?lastHand.res:null;
+  lastHand={key,res:now};
+  if(!prev)return;
+  let slot=0;
+  keysOf(G).forEach(k=>{const d=(now[k]||0)-(prev[k]||0);if(!d)return;flyCards(k,d,slot);slot+=Math.min(Math.abs(d),3)});
+}
+/* on the table screen: each player's card count shows +N / −N */
+function animateCounts(){
+  if(!G||!G.players||G.phase==='lobby'){lastCounts=null;return}
+  const now={};G.players.forEach(p=>now[p.id]=p.res?sumRes(p.res):0);
+  const prev=lastCounts&&lastCounts.code===G.code?lastCounts.c:null;
+  lastCounts={code:G.code,c:now};
+  if(!prev)return;
+  G.players.forEach(p=>{const d=now[p.id]-(prev[p.id]||0);if(!d)return;
+    const el=document.querySelector(`[data-cc="${p.id}"]`);if(!el)return;
+    const r=el.getBoundingClientRect();badge(r.right+14,r.top+r.height/2,d);pulse(el,d>0?'bump':'dip')});
 }
 
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
