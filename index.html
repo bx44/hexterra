@@ -790,6 +790,18 @@ function act(S0,me,a,rand){
       if(!Object.keys(S.discards).length)S.step=(!S.ck||S.attacked)?'robber':'main';
       break;
     }
+    case'give':{
+      const W=S.wedding;
+      if(S.step!=='wedding'||!W||W.owe[pi]==null)err('No tienes que regalar cartas.');
+      const need=W.owe[pi];
+      if(sumRes(a.res)!==need)err(`Elige exactamente ${need} carta(s).`);
+      if(!hasRes(P.res,a.res))err('No tienes esas cartas.');
+      const R=S.players[W.to];
+      for(const[k,q]of Object.entries(a.res)){P.res[k]-=q;R.res[k]+=q}
+      delete W.owe[pi];log(`${P.name} regala ${need} carta(s) a ${R.name} por la Boda`);
+      if(!Object.keys(W.owe).length){S.wedding=null;S.step='main'}
+      break;
+    }
     case'gold':{
       if(S.step!=='gold'||!S.gold[pi])err('No tienes recursos por elegir.');
       const need=S.gold[pi],tot=sumRes(a.res);
@@ -990,10 +1002,17 @@ function act(S0,me,a,rand){
           remove();displace(a.v);log(`${P.name} usa la Intriga`);recalcLongest(S,B,log);break}
         case'saboteur':{remove();opp.forEach(j=>{if(vpOf(S,j,false)>=myVP){const q=Math.floor(sumRes(S.players[j].res)/2);takeRandom(S.players[j],null,q);if(q)log(`${S.players[j].name} descarta ${q} por el Saboteador`)}});break}
         case'spy':{const t=a.p;if(!opp.includes(t))err('Elige a un rival.');const T=S.players[t];if(!T.prog.length)err('Ese jugador no tiene cartas de progreso.');
-          remove();const j=Math.floor(rand()*T.prog.length),got=T.prog.splice(j,1)[0];
-          if(P.prog.length<4)P.prog.push(got);else S.pdeck[PROG[got].c].unshift(got);log(`${P.name} espía a ${T.name} y le quita una carta`);break}
+          if(a.take!=null&&!T.prog.includes(a.take))err('Esa carta ya no está.');
+          remove();const j=a.take!=null?T.prog.indexOf(a.take):Math.floor(rand()*T.prog.length),got=T.prog.splice(j,1)[0];
+          if(P.prog.length<4)P.prog.push(got);else S.pdeck[PROG[got].c].unshift(got);log(`${P.name} espía a ${T.name} y le quita ${PROG[got].es}`);break}
         case'warlord':remove();Object.values(S.knights).forEach(k=>{if(k.p===pi&&!k.active){k.active=true;k.actT=S.turnNo}});log(`${P.name} activa a todos sus caballeros`);break;
-        case'wedding':{remove();opp.forEach(j=>{if(vpOf(S,j,false)>myVP){const g=takeRandom(S.players[j],P,2,[...COM,...RES]);if(g)log(`${S.players[j].name} regala ${g} carta(s) por la Boda`)}});break}
+        case'wedding':{
+          remove();const owe={};
+          opp.forEach(j=>{if(vpOf(S,j,false)>myVP){const q=Math.min(2,sumRes(S.players[j].res));if(q)owe[j]=q}});
+          log(`${P.name} juega la Boda`);
+          if(Object.keys(owe).length){S.wedding={to:pi,owe};S.step='wedding';log('Quien tenga más puntos elige qué cartas regalar')}
+          else log('Nadie tiene más puntos o cartas para regalar');
+          break}
         case'harbor':{remove();opp.forEach(j=>{const T=S.players[j];if(!COM.some(k=>T.res[k]))return;if(!RES.some(k=>P.res[k]))return;takeRandom(T,P,1,COM);takeRandom(P,T,1,RES)});log(`${P.name} usa el Puerto comercial`);break}
         case'mmerchant':{const t=a.p;if(!opp.includes(t)||vpOf(S,t,false)<=myVP)err('Elige a un rival con más puntos que tú.');remove();const g=takeRandom(S.players[t],P,2);log(`${P.name} toma ${g} carta(s) de ${S.players[t].name}`);break}
         case'merchant':{
@@ -1115,7 +1134,7 @@ function act(S0,me,a,rand){
   if(S.timer&&(S.phase==='setup'||S.phase==='play')){
     const now=Date.now(),T=S.timer*1000;
     if(turnKey(S)!==keyBefore){S.deadline=now+(S.phase==='setup'?Math.min(T,45000):T);if(S.paused!=null)S.paused=S.phase==='setup'?Math.min(T,45000):T}
-    else if(S0.step!==S.step&&['discard','gold','robber','steal'].includes(S.step)&&S.paused==null)S.deadline=Math.max(S.deadline||0,now+25000);
+    else if(S0.step!==S.step&&['discard','gold','robber','steal','wedding'].includes(S.step)&&S.paused==null)S.deadline=Math.max(S.deadline||0,now+25000);
   }else if(S.phase==='over')S.deadline=null;
   S.v=(S.v||0)+1;S.at=Date.now();
   return S;
@@ -1139,6 +1158,13 @@ function autoMove(S,rand){
     for(const k of Object.keys(S.discards)){const P=N.players[k];let need=N.discards[k];const pool=K.flatMap(x=>Array(P.res[x]).fill(x));const res={};
       for(let i=0;i<need;i++){const j=Math.floor(rand()*pool.length);const x=pool.splice(j,1)[0];res[x]=(res[x]||0)+1}
       N=act(N,id(+k),{t:'discard',res},rand)}
+    return note(N);
+  }
+  if(S.step==='wedding'){
+    let N=S;
+    for(const k of Object.keys(S.wedding.owe)){const P=N.players[k];const need=N.wedding.owe[k];const pool=K.flatMap(x=>Array(P.res[x]).fill(x));const res={};
+      for(let i=0;i<need;i++){const j=Math.floor(rand()*pool.length);const x=pool.splice(j,1)[0];res[x]=(res[x]||0)+1}
+      N=act(N,id(+k),{t:'give',res},rand)}
     return note(N);
   }
   if(S.step==='gold'){
@@ -1291,7 +1317,8 @@ function botTurnAction(S,B,pi,lv,rand){
       if(c==='trademono')return{t:'prog',card:c,res:'coin'};
       if(c==='merchant'){const h=B.hexes.map((x,i)=>i).filter(i=>RES.includes(B.hexes[i].type)&&B.hexes[i].v.some(v=>S.build[v]&&S.build[v].p===pi));if(h.length)return{t:'prog',card:c,h:h[0]}}
       if(c==='mmerchant'){const t=S.players.map((p,i)=>i).find(i=>i!==pi&&vpOf(S,i,false)>myVP&&sumRes(S.players[i].res));if(t!=null)return{t:'prog',card:c,p:t}}
-      if(c==='spy'){const t=S.players.map((p,i)=>i).find(i=>i!==pi&&S.players[i].prog.length);if(t!=null)return{t:'prog',card:c,p:t}}
+      if(c==='spy'){const t=S.players.map((p,i)=>i).find(i=>i!==pi&&S.players[i].prog.length);if(t!=null){const pref=['mmerchant','resmono','merchant','smith','warlord','roadb','bishop','wedding','trademono','irrigation','mining'];
+        const T=S.players[t].prog,take=pref.find(x=>T.includes(x))||T[0];return{t:'prog',card:c,p:t,take}}}
     }
   }
   const goals=botGoals(S,B,pi);
@@ -1328,6 +1355,7 @@ function botNext(S,rand){
     return tryA(i,{t:'setR',e:pickBest(es,e=>edgeValue(S,B,e,i,prod),lv,rand),kind},700);
   }
   if(S.step==='discard'){for(const k of Object.keys(S.discards)){if(bot(+k)){const r=tryA(+k,{t:'discard',res:botDiscard(S,+k,S.discards[k],rand,lvOf(+k))},600);if(r)return r}}return null}
+  if(S.step==='wedding'){for(const k of Object.keys(S.wedding.owe)){if(bot(+k)){const r=tryA(+k,{t:'give',res:botDiscard(S,+k,S.wedding.owe[k],rand,lvOf(+k))},900);if(r)return r}}return null}
   if(S.step==='gold'){for(const k of Object.keys(S.gold)){if(!bot(+k))continue;const P=S.players[k];let need=Math.min(S.gold[k],RES.reduce((s,x)=>s+S.bank[x],0));const top=botGoals(S,B,+k)[0];const want=top?needMap(P.res,top.cost):{};const res={};
     const order=[...Object.keys(want).filter(x=>RES.includes(x)),'ore','wheat','sheep','brick','wood'];
     for(const x of order){while(need>0&&S.bank[x]>(res[x]||0)&&(res[x]||0)<(want[x]||9)){res[x]=(res[x]||0)+1;need--}}
@@ -1362,7 +1390,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const RC={wood:'#2f6b33',brick:'#b5542e',sheep:'#79a83b',wheat:'#d6a51f',ore:'#69737d',gold:'#c9961a',paper:'#3f8f6b',cloth:'#b8902a',coin:'#3e5f9e'};
 const HEXFILL={wood:'#3d7a3a',brick:'#c06a3e',sheep:'#9cc25a',wheat:'#e7c04a',ore:'#8a939c',desert:'#dcc994',gold:'#e3b23c'};
 const TCOL={trade:'#d9a520',politics:'#2f63c4',science:'#2f8f4a'};
-const U={net:null,code:null,mode:null,sheet:null,dd:{},gd:{},pd:{},tg:{},tr:{},bg:null,bt:null,tab:'bank',newMode:'base',ck:false,table:false,timer:0,view:null,showBoard:false,name:'',kfrom:null,inv:[],pcard:null,alc:{w:3,r:3}};
+const U={wg:{},spyT:null,net:null,code:null,mode:null,sheet:null,dd:{},gd:{},pd:{},tg:{},tr:{},bg:null,bt:null,tab:'bank',newMode:'base',ck:false,table:false,timer:0,view:null,showBoard:false,name:'',kfrom:null,inv:[],pcard:null,alc:{w:3,r:3}};
 try{U.cb=localStorage.getItem('hx-cb')==='1';U.name=localStorage.getItem('hx-name')||'';U.ck=localStorage.getItem('hx-ck')==='1';U.table=localStorage.getItem('hx-table')==='1';U.timer=+(localStorage.getItem('hx-timer')||0)}catch(e){}
 const VIEW_ES={screen:'Pantalla',control:'Control',player:'Completo'};
 function viewOf(){
@@ -1535,7 +1563,7 @@ function soundCheck(){
     else if(/sube .* a nivel/.test(l))q('improve');
     else if(/movió el ladrón|ahuyenta/.test(l))q('robber');
     else if(/le robó/.test(l))q('steal');
-    else if(/compró una carta|roba una carta|sacó /.test(l))q('card');
+    else if(/compró una carta|roba una carta|sacó |regala .* Boda|espía/.test(l))q('card');
     else if(/propone un intercambio/.test(l))q('offer');
     else if(/intercambió|con el banco/.test(l))q('trade');
     else if(/Se acabó el tiempo/.test(l))q('buzz');
@@ -1710,6 +1738,7 @@ function status(onScreen){
     return S.step==='setS'?{i:S.ck&&second?'city':'settlement',t:`Coloca tu ${what}${second?' · da recursos':''}`,me:true}:{i:'road',t:'Coloca un camino junto a él',me:true};
   }
   const st=S.step;
+  if(st==='wedding'){const W=S.wedding||{owe:{}},n=W.owe[pi],to=esc(S.players[W.to]?.name||'');return n?{i:'cards',t:`Boda: regala ${n} carta${n>1?'s':''} a ${to}`,me:true}:{i:'cards',t:`Boda de ${to} · esperando regalos`}}
   if(st==='discard'){const n=S.discards[pi];return n?{i:'cards',t:`Descarta ${n} cartas`,me:true}:{i:'cards',t:'Salió 7 · esperando descartes'}}
   if(st==='gold')return S.gold[pi]?{i:'cards',t:'Elige tus recursos',me:true}:{i:'cards',t:'Otros eligen recursos'};
   if(!mine)return{i:{roll:'dice',main:'people',robber:'robber',steal:'robber'}[st]||'people',t:{roll:`${cn} va a tirar`,main:`Turno de ${cn}`,robber:`${cn} mueve al ladrón`,steal:`${cn} elige a quién robar`}[st]||`Turno de ${cn}`};
@@ -1877,7 +1906,7 @@ function renderGame(){
   renderSheet();
 }
 function playProg(c){
-  const need=PROG[c].need;U.pcard=c;U.sheet=null;
+  const need=PROG[c].need;U.pcard=c;U.sheet=null;U.spyT=null;
   if(!need)return send({t:'prog',card:c});
   if(need==='hex2'){U.mode='inventor';U.inv=[];return renderGame()}
   if(need==='edge'){U.mode='diplomat';return renderGame()}
@@ -1917,6 +1946,7 @@ function renderSheet(){
   const screenish=viewOf()==='screen'||pi<0;
   if(!screenish&&P&&S.step==='discard'&&S.discards?.[pi])kind='discard';
   else if(!screenish&&P&&S.step==='gold'&&S.gold?.[pi])kind='gold';
+  else if(!screenish&&P&&S.step==='wedding'&&S.wedding?.owe?.[pi])kind='wedding';
   else if(!screenish&&P&&S.step==='steal'&&S.cur===pi)kind='steal';
   else if(U.sheet==='mesa')kind='mesa';
   else if(U.sheet==='stats'&&S.phase==='over')kind='stats';
@@ -1931,7 +1961,10 @@ function renderSheet(){
     h=title('cards',`Descarta ${need}`,false)+`<div class="steps">${K.filter(k=>P.res[k]).map(k=>stepper('dd.'+k,k,d[k]||0,`tienes ${P.res[k]}`)).join('')}</div><button class="pri big" id="ok" ${tot===need?'':'disabled'}>${ic('check',20)} Descartar ${tot}/${need}</button>`;
   }else if(kind==='gold'){
     const need=Math.min(S.gold[pi],RES.reduce((s,k)=>s+S.bank[k],0)),d=U.gd,tot=sumRes(d);
-    h=title('cards',`Elige ${need}`,false)+`<div class="steps">${RES.map(k=>stepper('gd.'+k,k,d[k]||0)).join('')}</div><button class="pri big" id="ok" ${tot===need?'':'disabled'}>${ic('check',20)} Tomar</button>`;
+    h=title('cards',`Elige ${need} recurso${need>1?'s':''}`,false)+`<div class="lbl">Lo que ya tienes</div>${handHtml(P,true)}<div class="steps">${RES.map(k=>stepper('gd.'+k,k,d[k]||0,`tienes ${P.res[k]}`)).join('')}</div><button class="pri big" id="ok" ${tot===need?'':'disabled'}>${ic('check',20)} Tomar ${tot}/${need}</button>`;
+  }else if(kind==='wedding'){
+    const need=S.wedding.owe[pi],to=S.players[S.wedding.to],d=U.wg,tot=sumRes(d);
+    h=title('cards',`Boda: regala ${need} a ${esc(to.name)}`,false)+`<p class="desc">Tú eliges qué cartas das.</p><div class="steps">${K.filter(k=>P.res[k]).map(k=>stepper('wg.'+k,k,d[k]||0,`tienes ${P.res[k]}`)).join('')}</div><button class="pri big" id="ok" ${tot===need?'':'disabled'}>${ic('check',20)} Regalar ${tot}/${need}</button>`;
   }else if(kind==='steal'){
     h=title('robber','¿A quién le robas?',false)+`<div class="plist">${S.victims.map(i=>`<button class="pbtn" data-st="${i}"><span class="dot" style="background:${COLORS[S.players[i].color].c}"></span><b>${esc(S.players[i].name)}</b><span>${ic('cards',16)} ${sumRes(S.players[i].res)}</span></button>`).join('')}</div>`;
   }else if(kind==='plenty'){
@@ -1945,9 +1978,12 @@ function renderSheet(){
     if(D.need==='dice'){
       const dsel=(id,val,red)=>`<div class="dsel">${[1,2,3,4,5,6].map(n=>`<button data-alc="${id}.${n}" class="${val===n?'on':''}" aria-label="${n}">${dieSvg(n,red)}</button>`).join('')}</div>`;
       h+=`${dsel('w',U.alc.w)}${dsel('r',U.alc.r,true)}<button class="pri big" id="okp">${ic('dice',20)} Tirar ${U.alc.w+U.alc.r}</button>`;
+    }else if(c==='spy'&&U.spyT!=null&&S.players[U.spyT]){
+      const T=S.players[U.spyT];
+      h+=`<div class="lbl">Cartas de ${esc(T.name)} · elige una</div><div class="clist">${T.prog.map(x=>{const X=PROG[x];return`<button class="cc pc-${X.c}" data-spy="${x}"><b>${X.es}</b><span>${X.d}</span></button>`}).join('')||'<p class="desc">Ya no tiene cartas de progreso.</p>'}</div><button id="spyback">${ic('people',18)} Elegir a otro jugador</button>`;
     }else if(D.need==='player'){
       const opp=S.players.map((p,j)=>j).filter(j=>j!==pi&&(c!=='mmerchant'||vpOf(S,j,false)>myVP)&&(c!=='spy'||S.players[j].prog.length)&&(c!=='deserter'||Object.values(S.knights).some(k=>k.p===j)));
-      h+=opp.length?`<div class="plist">${opp.map(j=>`<button class="pbtn" data-pp="${j}"><span class="dot" style="background:${COLORS[S.players[j].color].c}"></span><b>${esc(S.players[j].name)}</b><span>${vpOf(S,j,false)} pts</span></button>`).join('')}</div>`:`<p class="desc">Nadie cumple la condición ahora.</p>`;
+      h+=opp.length?`<div class="plist">${opp.map(j=>`<button class="pbtn" data-pp="${j}"><span class="dot" style="background:${COLORS[S.players[j].color].c}"></span><b>${esc(S.players[j].name)}</b><span>${c==='spy'?`${ic('dev',16)} ${S.players[j].prog.length}`:`${vpOf(S,j,false)} pts`}</span></button>`).join('')}</div>`:`<p class="desc">Nadie cumple la condición ahora.</p>`;
     }else h+=resPick('pr',D.need==='com'?COM:D.need==='res'?RES:ALL);
   }else if(kind==='cards'){
     if(S.ck){
@@ -2015,8 +2051,8 @@ function renderSheet(){
     <button id="leave">${ic('exit',18)} Salir al inicio</button>`;
   }
   box.innerHTML=`<div class="veil" id="veil"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`;
-  const lim=(grp,k)=>grp==='dd'||grp==='tg'||grp==='cg'?P.res[k]:grp==='pd'?Math.min(2,S.bank[k]):grp==='gd'?S.bank[k]:9;
-  const cap={dd:S.discards?.[pi],gd:S.gold?.[pi],pd:2};
+  const lim=(grp,k)=>grp==='dd'||grp==='tg'||grp==='cg'||grp==='wg'?P.res[k]:grp==='pd'?Math.min(2,S.bank[k]):grp==='gd'?S.bank[k]:9;
+  const cap={dd:S.discards?.[pi],gd:S.gold?.[pi],pd:2,wg:S.wedding?.owe?.[pi]};
   const q=(sel,f)=>box.querySelectorAll(sel).forEach(b=>b.onclick=()=>f(b));
   q('[data-up]',b=>{const[g,k]=b.dataset.up.split('.');const o=U[g];if((o[k]||0)<lim(g,k)&&(cap[g]==null||sumRes(o)<cap[g]))o[k]=(o[k]||0)+1;renderSheet()});
   q('[data-dn]',b=>{const[g,k]=b.dataset.dn.split('.');const o=U[g];if(o[k])o[k]--;renderSheet()});
@@ -2026,6 +2062,7 @@ function renderSheet(){
   const clean=o=>Object.fromEntries(Object.entries(o).filter(([k,v])=>v>0));
   if($('#ok'))$('#ok').onclick=async()=>{
     if(kind==='discard'){await send({t:'discard',res:clean(U.dd)});U.dd={}}
+    if(kind==='wedding'){await send({t:'give',res:clean(U.wg)});U.wg={}}
     if(kind==='gold'){await send({t:'gold',res:clean(U.gd)});U.gd={}}
     if(kind==='plenty'){const arr=RES.flatMap(k=>Array(U.pd[k]||0).fill(k));U.sheet=null;await send({t:'play',card:'plenty',res:arr});U.pd={}}
   };
@@ -2033,7 +2070,9 @@ function renderSheet(){
   q('[data-mono]',b=>{U.sheet=null;send({t:'play',card:'mono',res:b.dataset.mono})});
   q('[data-alc]',b=>{const[d,n]=b.dataset.alc.split('.');U.alc[d]=+n;renderSheet()});
   if($('#okp'))$('#okp').onclick=()=>{U.sheet=null;send({t:'prog',card:'alchemist',w:U.alc.w,r:U.alc.r})};
-  q('[data-pp]',b=>{const c=U.pcard;U.sheet=null;send({t:'prog',card:c,p:+b.dataset.pp})});
+  q('[data-pp]',b=>{const c=U.pcard;if(c==='spy'){U.spyT=+b.dataset.pp;renderSheet();return}U.sheet=null;send({t:'prog',card:c,p:+b.dataset.pp})});
+  q('[data-spy]',b=>{const t=U.spyT;U.sheet=null;U.spyT=null;send({t:'prog',card:'spy',p:t,take:b.dataset.spy})});
+  if($('#spyback'))$('#spyback').onclick=()=>{U.spyT=null;renderSheet()};
   q('[data-pr]',b=>{const c=U.pcard;U.sheet=null;send({t:'prog',card:c,res:b.dataset.pr})});
   q('[data-prog]',b=>playProg(b.dataset.prog));
   q('[data-play]',b=>{const d=b.dataset.play;if(d==='plenty'){U.sheet='plenty';U.pd={};renderSheet()}else if(d==='mono'){U.sheet='mono';renderSheet()}else{U.sheet=null;send({t:'play',card:d})}});
