@@ -331,6 +331,15 @@ button.pri,.db.pri{--btn:var(--accent)}
 @keyframes dip{30%{transform:translateY(5px) scale(.9)}100%{transform:none}}
 .st span{display:inline-flex}
 @media (prefers-reduced-motion:reduce){.bump,.dip{animation-duration:.01s}.dbadge{animation-duration:1.3s}}
+.grow2{display:flex;gap:6px;align-items:stretch}
+.grow2>.gitem{flex:1;min-width:0}
+.iconb.del{height:auto;min-height:44px;color:var(--muted)}
+.iconb.del:hover{color:var(--bad);border-color:var(--bad)}
+.ask{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:12px;border:2px solid var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--panel));font-weight:700}
+.ask .row{gap:6px}
+button.danger{background:var(--bad);color:#fff;border-color:var(--bad);display:inline-flex;align-items:center;gap:6px}
+button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line));display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.sheet>button.dangerl{display:flex}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -629,7 +638,7 @@ function act(S0,me,a,rand){
     S.players.push({id:me,name:(a.name||'Jugador').slice(0,16),color:[0,1,2,3,4,5].find(c=>!used.includes(c))});
     S.pids.push(me);log(`${a.name} entró a la partida`);S.v++;return S;
   }
-  if(pi<0&&!(['start','pause','addBot','removeBot','config','rematch'].includes(a.t)&&S.host===me)&&a.t!=='timeout')err('No estás en esta partida.');
+  if(pi<0&&!(['start','pause','addBot','removeBot','config','rematch','close'].includes(a.t)&&S.host===me)&&a.t!=='timeout')err('No estás en esta partida.');
   const keyBefore=turnKey(S0);
   const P=S.players[pi],isCur=S.cur===pi,n=S.players.length;
   const pay=c=>{if(!hasRes(P.res,c))err('No te alcanzan los recursos.');for(const[k,q]of Object.entries(c)){P.res[k]-=q;S.bank[k]+=q}};
@@ -1160,6 +1169,10 @@ function act(S0,me,a,rand){
       S.offer=null;P.dev.push(...P.newDev);P.newDev=[];S.devPlayed=false;S.free=0;S.tf={};S.fleet=null;S.freeKnight=0;
       S.cur=(S.cur+1)%n;S.step='roll';S.turnNo++;log(`Turno de ${S.players[S.cur].name}`);break;
     }
+    case'close':{
+      if(S.host!==me)err('Solo quien abrió la partida puede cerrarla.');
+      S.phase='closed';S.deadline=null;log('Quien abrió la partida la cerró');break;
+    }
     case'pause':{
       if(!S.timer)err('Esta partida no tiene tiempo.');
       if(S.host!==me&&!isCur)err('Solo quien abrió la partida o el jugador en turno pueden pausar.');
@@ -1521,6 +1534,7 @@ const IC={
   smile:'<circle cx="12" cy="12" r="9"/><path d="M8 14.5 Q12 18 16 14.5"/><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none"/>',
   chart:'<path d="M4 20 V10 M10 20 V4 M16 20 V13 M22 20 H2" stroke-width="2.6"/>',
   eye:'<path d="M2 12 Q12 3 22 12 Q12 21 2 12 Z"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>',
+  trash:'<path d="M4 7 H20 M9 7 V4 H15 V7 M6 7 L7 20 H17 L18 7 M10 11 V16 M14 11 V16"/>',
   fs:'<path d="M4 9 V4 H9 M15 4 H20 V9 M20 15 V20 H15 M9 20 H4 V15" stroke-width="2.4"/>',
   fsx:'<path d="M9 4 V9 H4 M20 9 H15 V4 M15 20 V15 H20 M4 15 H9 V20" stroke-width="2.4"/>'
 };
@@ -2151,7 +2165,8 @@ function renderSheet(){
     ${S.timer&&(S.host===ME||mine)?`<button id="pz2">${ic(S.paused!=null?'play':'pause',18)} ${S.paused!=null?'Reanudar tiempo':'Pausar tiempo'}</button>`:''}
     <div class="lbl">Bitácora</div><div class="log">${S.log.slice(-12).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div>
     <p class="desc">${esc(modeName(S))} · gana con ${targetOf(S)} · código <b class="code">${S.code}</b></p>
-    <button id="leave">${ic('exit',18)} Salir al inicio</button>`;
+    <button id="leave">${ic('exit',18)} Salir al inicio</button>
+    ${S.host===ME?(U.closeAsk?`<div class="ask"><span>¿Cerrar la partida para todos? Nadie podrá volver a entrar.</span><div class="row"><button class="danger" id="closeYes">${ic('trash',18)} Sí, cerrar</button><button id="closeNo">No</button></div></div>`:`<button class="dangerl" id="closeG">${ic('trash',18)} Cerrar partida para todos</button>`):''}`;
   }
   box.innerHTML=`<div class="veil" id="veil"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`;
   const lim=(grp,k)=>grp==='dd'||grp==='tg'||grp==='cg'||grp==='wg'||grp==='sd'?P.res[k]:grp==='pd'?Math.min(2,S.bank[k]):grp==='gd'?S.bank[k]:9;
@@ -2200,6 +2215,9 @@ function renderSheet(){
   if($('#fs2'))$('#fs2').onclick=()=>{U.sheet=null;renderSheet();toggleFS()};
   if($('#pz2'))$('#pz2').onclick=()=>{U.sheet=null;send({t:'pause'})};
   if($('#leave'))$('#leave').onclick=()=>{U.sheet=null;closeGame()};
+  if($('#closeG'))$('#closeG').onclick=()=>{U.closeAsk=true;renderSheet()};
+  if($('#closeNo'))$('#closeNo').onclick=()=>{U.closeAsk=false;renderSheet()};
+  if($('#closeYes'))$('#closeYes').onclick=()=>{U.closeAsk=false;U.sheet=null;renderSheet();closeForAll()};
   if($('#okb'))$('#okb').onclick=async()=>{await send({t:'bank',give:U.bg,get:U.bt});U.bg=null;U.bt=null;if(U.sheet)renderSheet()};
   if($('#okt'))$('#okt').onclick=()=>{const a={t:'offer',give:clean(U.tg),get:clean(U.tr)};U.sheet=null;send(a)};
 }
@@ -2399,6 +2417,29 @@ function animateCounts(){
     const r=el.getBoundingClientRect();badge(r.right+14,r.top+r.height/2,d);pulse(el,d>0?'bump':'dip')});
 }
 
+/* ---------- deleting saved games ---------- */
+/* a row with the game button and a trash can; the trash asks once, right in the row */
+function delRow(code,inner,label){
+  if(U.delAsk===code)return`<div class="grow2 ask"><span>¿${label} <span class="code">${esc(code)}</span>?</span><div class="row"><button class="danger sm" data-delyes="${code}">${ic('trash',16)} ${label.split(' ')[0]}</button><button class="sm" data-delno>No</button></div></div>`;
+  return`<div class="grow2">${inner}<button class="iconb del" data-del="${code}" aria-label="${label} ${esc(code)}">${ic('trash',18)}</button></div>`;
+}
+function delAllRow(label){
+  if(U.delAsk==='*')return`<div class="ask"><span>¿${label}?</span><div class="row"><button class="danger sm" data-delyes="*">${ic('trash',16)} Sí, borrar</button><button class="sm" data-delno>No</button></div></div>`;
+  return`<button class="dangerl sm" data-del="*">${ic('trash',16)} ${label}</button>`;
+}
+function bindDel(onYes){
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();U.delAsk=b.dataset.del;renderHome()});
+  document.querySelectorAll('[data-delno]').forEach(b=>b.onclick=()=>{U.delAsk=null;renderHome()});
+  document.querySelectorAll('[data-delyes]').forEach(b=>b.onclick=async()=>{const c=b.dataset.delyes;U.delAsk=null;await onYes(c);renderHome()});
+}
+let closingNow=false;
+function handleClosed(){
+  if(!G||G.phase!=='closed')return false;
+  if(!closingNow){closingNow=true;const c=G.code;toast(G.host===ME?'Cerraste la partida.':'Quien abrió la partida la cerró.');forgetGame(c);setTimeout(()=>{closingNow=false;closeGame()},900)}
+  $('#app').innerHTML=`<p class="muted" style="padding:20px">La partida <span class="code">${esc(G.code)}</span> se cerró.</p>`;$('#sheet').innerHTML='';
+  return true;
+}
+
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
 function resetLocal(a){if(a.t!=='join'){U.mode=null;U.kfrom=null;U.inv=[];U.pcard=null}}
 async function send(a){
@@ -2409,6 +2450,7 @@ async function send(a){
   hostConn.send({type:'act',a,pid:ME});resetLocal(a);
 }
 function saveHost(){
+  if(G.phase==='closed')return;
   lsSet('hx-host-'+G.code,G);
   const list=lsGet('hx-hosted',[]).filter(c=>c!==G.code);list.unshift(G.code);
   list.slice(10).forEach(c=>{try{localStorage.removeItem('hx-host-'+c)}catch(e){}});
@@ -2488,14 +2530,21 @@ function render(){
   if(!G||G.phase==='lobby'||!U.code)setGameMode(false);
   if(!U.code)return renderHome();
   if(!G){$('#app').innerHTML=`<div class="top"><button id="back">← Inicio</button>${netPill()}</div><p class="muted">Buscando la partida <span class="code">${esc(U.code)}</span>…</p><p class="small muted">La pantalla de la mesa tiene que estar abierta. Si están en la misma casa, usen el mismo Wi-Fi.</p>`;$('#sheet').innerHTML='';$('#back').onclick=closeGame;return}
+  if(handleClosed())return;
   if(G.phase==='lobby')return renderLobby();
   renderGame();
 }
+function forgetGame(code){
+  try{localStorage.removeItem('hx-host-'+code);localStorage.removeItem('hx-view-'+code)}catch(e){}
+  lsSet('hx-hosted',lsGet('hx-hosted',[]).filter(c=>c!==code));
+  if(lsGet('hx-last',null)===code){try{localStorage.removeItem('hx-last')}catch(e){}}
+}
+function closeForAll(){send({t:'close'})}
 
 /* ---------- home ---------- */
 function renderHome(){
   setGameMode(false);$('#sheet').innerHTML='';
-  const hosted=lsGet('hx-hosted',[]).map(c=>lsGet('hx-host-'+c,null)).filter(S=>S&&S.phase!=='over');
+  const hosted=lsGet('hx-hosted',[]).map(c=>lsGet('hx-host-'+c,null)).filter(S=>S&&S.phase!=='over'&&S.phase!=='closed');
   const last=lsGet('hx-last',null);
   $('#app').innerHTML=`
   <header class="brand">${logoSvg(54)}<div><h1>Hexterra</h1><p>Coloniza la isla con tus amigos. El tablero en una pantalla, las cartas en cada teléfono.</p></div></header>
@@ -2505,7 +2554,7 @@ function renderHome(){
       <input id="nm" maxlength="16" placeholder="Cómo te verán los demás" value="${esc(U.name)}">
       <div class="lbl">¿Te invitaron?</div>
       <div class="row"><input id="jc" maxlength="5" placeholder="ABCDE" value="${esc(U.pre||'')}" style="text-transform:uppercase;width:140px;letter-spacing:.15em;font-weight:800"><button class="pri" id="join">Unirme a jugar</button><button id="jscr">Usar como pantalla</button></div>
-      ${last&&!U.pre?`<button class="gitem" id="rej"><span>Volver a la partida <span class="code">${esc(last)}</span></span><span class="small muted">en otra pantalla</span></button>`:''}
+      ${last&&!U.pre?delRow(last,`<button class="gitem" id="rej"><span>Volver a la partida <span class="code">${esc(last)}</span></span><span class="small muted">en otra pantalla</span></button>`,'Olvidar'):''}
     </section>
     <section class="card">
       <div class="lbl">Abrir una partida nueva</div>
@@ -2515,7 +2564,7 @@ function renderHome(){
       <div class="lbl">Tiempo por turno</div><div class="tabs" id="tmr">${TIMERS.map(([v,l])=>`<button data-tm="${v}" class="${U.timer===v?'on':''}">${l}</button>`).join('')}</div>
       <p class="small muted" style="margin:0" id="tgt"></p>
       <button class="pri" id="create">${U.table?'Abrir mesa en esta pantalla':'Crear partida (este dispositivo la guarda)'}</button>
-      ${hosted.length?`<div class="lbl">Partidas guardadas aquí</div><div class="glist">${hosted.map(S=>`<button class="gitem" data-res="${S.code}"><span><span class="code">${S.code}</span> · ${esc(modeName(S))}<br><span class="small muted">${S.players.map(p=>esc(p.name)).join(', ')||'sin jugadores'}</span></span><span class="small muted">${S.phase==='lobby'?'en sala':'turno '+(S.turnNo||0)}<br>retomar</span></button>`).join('')}</div>`:''}
+      ${hosted.length?`<div class="lbl">Partidas guardadas aquí</div><div class="glist">${hosted.map(S=>delRow(S.code,`<button class="gitem" data-res="${S.code}"><span><span class="code">${S.code}</span> · ${esc(modeName(S))}<br><span class="small muted">${S.players.map(p=>esc(p.name)).join(', ')||'sin jugadores'}</span></span><span class="small muted">${S.phase==='lobby'?'en sala':'turno '+(S.turnNo||0)}<br>retomar</span></button>`,'Borrar partida')).join('')}</div>${hosted.length>1?delAllRow('Borrar todas las partidas guardadas'):''}`:''}
     </section>
   </div>
   <p class="small muted" style="max-width:70ch">El dispositivo que abre la partida la guarda: déjalo encendido y con esta página abierta. Los demás se conectan a él por internet; funciona mejor si están en el mismo Wi-Fi.</p>`;
@@ -2530,6 +2579,8 @@ function renderHome(){
   $('#jscr').onclick=()=>{U.pre=null;joinRemote($('#jc').value,true)};
   $('#jc').onkeydown=e=>{if(e.key==='Enter')$('#join').click()};
   if($('#rej'))$('#rej').onclick=()=>joinRemote(last);
+  bindDel(code=>{if(code==='*'){lsGet('hx-hosted',[]).forEach(forgetGame);lsSet('hx-hosted',[]);toast('Se borraron las partidas guardadas.')}
+    else{forgetGame(code);toast('Partida '+code+' borrada.')}});
   document.querySelectorAll('[data-res]').forEach(b=>b.onclick=()=>{const S=lsGet('hx-host-'+b.dataset.res,null);if(S)startHost(S)});
   if(U.pre&&!U.name.trim())$('#nm').focus();
 }
