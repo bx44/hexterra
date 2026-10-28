@@ -313,6 +313,12 @@ button.big{min-height:54px;font-size:17px;display:flex;align-items:center;justif
 .sw i{width:24px;height:24px;border-radius:50%;background:var(--panel);display:block;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s}
 .sw.on{background:var(--accent)}.sw.on i{transform:translateX(22px)}
 button.pri,.db.pri{--btn:var(--accent)}
+.horow{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:12px;background:var(--soft)}
+.hon{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rpick.sm{grid-template-columns:repeat(5,minmax(0,1fr))}
+.rpick.sm .rp{padding:6px 2px}
+.rpick.sm .rp svg{width:26px;height:26px}
+.rp:disabled{opacity:.3}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -365,11 +371,11 @@ const PROG={
   deserter:{c:'politics',n:2,es:'Desertor',d:'Un rival quita su caballero más débil; tú colocas uno igual gratis.',need:'player'},
   diplomat:{c:'politics',n:2,es:'Diplomático',d:'Quita un camino abierto de cualquier jugador.',need:'edge'},
   intrigue:{c:'politics',n:2,es:'Intriga',d:'Desplaza un caballero rival que toque tus caminos.',need:'knight'},
-  saboteur:{c:'politics',n:2,es:'Saboteador',d:'Quien tenga tantos o más puntos que tú descarta la mitad de su mano.'},
+  saboteur:{c:'politics',n:2,es:'Saboteador',d:'Quien tenga tantos o más puntos que tú descarta la mitad de su mano, a su elección.'},
   spy:{c:'politics',n:3,es:'Espía',d:'Roba una carta de progreso a un rival.',need:'player'},
   warlord:{c:'politics',n:2,es:'Señor de la guerra',d:'Activa gratis todos tus caballeros.'},
   wedding:{c:'politics',n:2,es:'Boda',d:'Cada rival con más puntos te da 2 cartas.'},
-  harbor:{c:'trade',n:2,es:'Puerto comercial',d:'Cada rival te da 1 mercancía a cambio de 1 recurso tuyo.'},
+  harbor:{c:'trade',n:2,es:'Puerto comercial',d:'Ofreces 1 recurso a cada rival y cada uno te da 1 mercancía de su elección.',need:'offers'},
   mmerchant:{c:'trade',n:2,es:'Mercader maestro',d:'Toma 2 cartas de un rival con más puntos.',need:'player'},
   merchant:{c:'trade',n:6,es:'Mercader',d:'Pon al mercader en una loseta junto a ti: +1 punto y 2:1 de ese recurso.',need:'hex'},
   fleet:{c:'trade',n:2,es:'Flota mercante',d:'Este turno cambias 2:1 un recurso o mercancía que elijas.',need:'card'},
@@ -790,6 +796,26 @@ function act(S0,me,a,rand){
       if(!Object.keys(S.discards).length)S.step=(!S.ck||S.attacked)?'robber':'main';
       break;
     }
+    case'sabDrop':{
+      const W=S.sab;
+      if(S.step!=='sabotage'||!W||W.owe[pi]==null)err('No tienes que descartar.');
+      const need=W.owe[pi];
+      if(sumRes(a.res)!==need)err(`Descarta exactamente ${need}.`);
+      if(!hasRes(P.res,a.res))err('No tienes esas cartas.');
+      for(const[k,q]of Object.entries(a.res)){P.res[k]-=q;S.bank[k]+=q}
+      delete W.owe[pi];if(S.stats)S.stats.lost[pi]+=need;log(`${P.name} descarta ${need} por el Saboteador`);
+      if(!Object.keys(W.owe).length){S.sab=null;S.step='main'}
+      break;
+    }
+    case'harborGive':{
+      const W=S.harbor;
+      if(S.step!=='harbor'||!W||W.owe[pi]==null)err('No tienes que dar mercancía.');
+      if(!COM.includes(a.res)||!P.res[a.res])err('Elige una mercancía que tengas.');
+      const R=S.players[W.to];P.res[a.res]--;R.res[a.res]++;
+      delete W.owe[pi];log(`${P.name} da 1 ${RES_ES[a.res]} a ${R.name}`);
+      if(!Object.keys(W.owe).length){S.harbor=null;S.step='main'}
+      break;
+    }
     case'give':{
       const W=S.wedding;
       if(S.step!=='wedding'||!W||W.owe[pi]==null)err('No tienes que regalar cartas.');
@@ -1000,7 +1026,13 @@ function act(S0,me,a,rand){
           const k=S.knights[a.v];if(!k||k.p===pi)err('Elige un caballero rival.');
           if(!B.verts[a.v].e.some(e=>S.lines[e]&&S.lines[e].p===pi))err('Debe tocar uno de tus caminos.');
           remove();displace(a.v);log(`${P.name} usa la Intriga`);recalcLongest(S,B,log);break}
-        case'saboteur':{remove();opp.forEach(j=>{if(vpOf(S,j,false)>=myVP){const q=Math.floor(sumRes(S.players[j].res)/2);takeRandom(S.players[j],null,q);if(q)log(`${S.players[j].name} descarta ${q} por el Saboteador`)}});break}
+        case'saboteur':{
+          remove();const owe={};
+          opp.forEach(j=>{if(vpOf(S,j,false)>=myVP){const q=Math.floor(sumRes(S.players[j].res)/2);if(q)owe[j]=q}});
+          log(`${P.name} juega el Saboteador`);
+          if(Object.keys(owe).length){S.sab={by:pi,owe};S.step='sabotage';log('Quien tenga tantos o más puntos elige qué descartar')}
+          else log('Nadie tiene que descartar');
+          break}
         case'spy':{const t=a.p;if(!opp.includes(t))err('Elige a un rival.');const T=S.players[t];if(!T.prog.length)err('Ese jugador no tiene cartas de progreso.');
           if(a.take!=null&&!T.prog.includes(a.take))err('Esa carta ya no está.');
           remove();const j=a.take!=null?T.prog.indexOf(a.take):Math.floor(rand()*T.prog.length),got=T.prog.splice(j,1)[0];
@@ -1013,7 +1045,21 @@ function act(S0,me,a,rand){
           if(Object.keys(owe).length){S.wedding={to:pi,owe};S.step='wedding';log('Quien tenga más puntos elige qué cartas regalar')}
           else log('Nadie tiene más puntos o cartas para regalar');
           break}
-        case'harbor':{remove();opp.forEach(j=>{const T=S.players[j];if(!COM.some(k=>T.res[k]))return;if(!RES.some(k=>P.res[k]))return;takeRandom(T,P,1,COM);takeRandom(P,T,1,RES)});log(`${P.name} usa el Puerto comercial`);break}
+        case'harbor':{
+          const elig=opp.filter(j=>COM.some(k=>S.players[j].res[k]));
+          const mine=RES.reduce((t,k)=>t+P.res[k],0);
+          if(!elig.length)err('Ningún rival tiene mercancías.');
+          if(!mine)err('No tienes recursos para ofrecer.');
+          const offers=a.offers||{},keys=Object.keys(offers).map(Number);
+          if(keys.some(j=>!elig.includes(j)))err('Solo puedes ofrecer a rivales con mercancías.');
+          if(keys.length!==Math.min(elig.length,mine))err(`Ofrece un recurso a ${Math.min(elig.length,mine)} rival(es).`);
+          const need={};keys.forEach(j=>{const k=offers[j];if(!RES.includes(k))err('Ofrece recursos, no mercancías.');need[k]=(need[k]||0)+1});
+          if(!hasRes(P.res,need))err('No tienes esos recursos.');
+          remove();const owe={};
+          keys.forEach(j=>{const k=offers[j];P.res[k]--;S.players[j].res[k]++;owe[j]=k});
+          S.harbor={to:pi,owe};S.step='harbor';
+          log(`${P.name} usa el Puerto comercial: cada rival elige qué mercancía dar`);
+          break}
         case'mmerchant':{const t=a.p;if(!opp.includes(t)||vpOf(S,t,false)<=myVP)err('Elige a un rival con más puntos que tú.');remove();const g=takeRandom(S.players[t],P,2);log(`${P.name} toma ${g} carta(s) de ${S.players[t].name}`);break}
         case'merchant':{
           const H=B.hexes[a.h];if(!H||!RES.includes(H.type))err('Elige una loseta de recurso.');
@@ -1134,7 +1180,7 @@ function act(S0,me,a,rand){
   if(S.timer&&(S.phase==='setup'||S.phase==='play')){
     const now=Date.now(),T=S.timer*1000;
     if(turnKey(S)!==keyBefore){S.deadline=now+(S.phase==='setup'?Math.min(T,45000):T);if(S.paused!=null)S.paused=S.phase==='setup'?Math.min(T,45000):T}
-    else if(S0.step!==S.step&&['discard','gold','robber','steal','wedding'].includes(S.step)&&S.paused==null)S.deadline=Math.max(S.deadline||0,now+25000);
+    else if(S0.step!==S.step&&['discard','gold','robber','steal','wedding','sabotage','harbor'].includes(S.step)&&S.paused==null)S.deadline=Math.max(S.deadline||0,now+25000);
   }else if(S.phase==='over')S.deadline=null;
   S.v=(S.v||0)+1;S.at=Date.now();
   return S;
@@ -1158,6 +1204,18 @@ function autoMove(S,rand){
     for(const k of Object.keys(S.discards)){const P=N.players[k];let need=N.discards[k];const pool=K.flatMap(x=>Array(P.res[x]).fill(x));const res={};
       for(let i=0;i<need;i++){const j=Math.floor(rand()*pool.length);const x=pool.splice(j,1)[0];res[x]=(res[x]||0)+1}
       N=act(N,id(+k),{t:'discard',res},rand)}
+    return note(N);
+  }
+  if(S.step==='sabotage'){
+    let N=S;
+    for(const k of Object.keys(S.sab.owe)){const P=N.players[k];const need=N.sab.owe[k];const pool=K.flatMap(x=>Array(P.res[x]).fill(x));const res={};
+      for(let i=0;i<need;i++){const j=Math.floor(rand()*pool.length);const x=pool.splice(j,1)[0];res[x]=(res[x]||0)+1}
+      N=act(N,id(+k),{t:'sabDrop',res},rand)}
+    return note(N);
+  }
+  if(S.step==='harbor'){
+    let N=S;
+    for(const k of Object.keys(S.harbor.owe)){const P=N.players[k];const has=COM.filter(x=>P.res[x]);N=act(N,id(+k),{t:'harborGive',res:pick(has)},rand)}
     return note(N);
   }
   if(S.step==='wedding'){
@@ -1308,7 +1366,13 @@ function botTurnAction(S,B,pi,lv,rand){
     for(const c of P.prog){
       if(['crane','printer','constitution','alchemist'].includes(c))continue;
       if(c==='roadb'&&B.edges.some((e,i)=>canLine(S,B,i,pi,'road',null)))return{t:'prog',card:c};
-      if(c==='irrigation'||c==='mining'||c==='wedding'||c==='saboteur'||c==='harbor')return{t:'prog',card:c};
+      if(c==='irrigation'||c==='mining'||c==='wedding'||c==='saboteur')return{t:'prog',card:c};
+      if(c==='harbor'){
+        const elig=S.players.map((p,j)=>j).filter(j=>j!==pi&&COM.some(k=>S.players[j].res[k]));
+        const top=botGoals(S,B,pi)[0],keep=top?top.cost:{},left={...P.res},offers={};
+        for(const j of elig){const k=RES.filter(x=>left[x]>0).sort((x,y)=>((keep[x]?3:0)-left[x])-((keep[y]?3:0)-left[y]))[0];if(!k)break;offers[j]=k;left[k]--}
+        if(Object.keys(offers).length)return{t:'prog',card:c,offers};
+      }
       if(c==='warlord'&&Object.values(S.knights).some(k=>k.p===pi&&!k.active))return{t:'prog',card:c};
       if(c==='smith'&&Object.values(S.knights).some(k=>k.p===pi&&k.lvl<2))return{t:'prog',card:c};
       if(c==='engineer'&&Object.values(S.build).some(b=>b.p===pi&&b.t==='city'&&!b.wall))return{t:'prog',card:c};
@@ -1355,6 +1419,8 @@ function botNext(S,rand){
     return tryA(i,{t:'setR',e:pickBest(es,e=>edgeValue(S,B,e,i,prod),lv,rand),kind},700);
   }
   if(S.step==='discard'){for(const k of Object.keys(S.discards)){if(bot(+k)){const r=tryA(+k,{t:'discard',res:botDiscard(S,+k,S.discards[k],rand,lvOf(+k))},600);if(r)return r}}return null}
+  if(S.step==='sabotage'){for(const k of Object.keys(S.sab.owe)){if(bot(+k)){const r=tryA(+k,{t:'sabDrop',res:botDiscard(S,+k,S.sab.owe[k],rand,lvOf(+k))},900);if(r)return r}}return null}
+  if(S.step==='harbor'){for(const k of Object.keys(S.harbor.owe)){if(bot(+k)){const P=S.players[k];const x=COM.filter(c=>P.res[c]).sort((a,b)=>P.res[b]-P.res[a])[0];const r=tryA(+k,{t:'harborGive',res:x},900);if(r)return r}}return null}
   if(S.step==='wedding'){for(const k of Object.keys(S.wedding.owe)){if(bot(+k)){const r=tryA(+k,{t:'give',res:botDiscard(S,+k,S.wedding.owe[k],rand,lvOf(+k))},900);if(r)return r}}return null}
   if(S.step==='gold'){for(const k of Object.keys(S.gold)){if(!bot(+k))continue;const P=S.players[k];let need=Math.min(S.gold[k],RES.reduce((s,x)=>s+S.bank[x],0));const top=botGoals(S,B,+k)[0];const want=top?needMap(P.res,top.cost):{};const res={};
     const order=[...Object.keys(want).filter(x=>RES.includes(x)),'ore','wheat','sheep','brick','wood'];
@@ -1390,7 +1456,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const RC={wood:'#2f6b33',brick:'#b5542e',sheep:'#79a83b',wheat:'#d6a51f',ore:'#69737d',gold:'#c9961a',paper:'#3f8f6b',cloth:'#b8902a',coin:'#3e5f9e'};
 const HEXFILL={wood:'#3d7a3a',brick:'#c06a3e',sheep:'#9cc25a',wheat:'#e7c04a',ore:'#8a939c',desert:'#dcc994',gold:'#e3b23c'};
 const TCOL={trade:'#d9a520',politics:'#2f63c4',science:'#2f8f4a'};
-const U={wg:{},spyT:null,net:null,code:null,mode:null,sheet:null,dd:{},gd:{},pd:{},tg:{},tr:{},bg:null,bt:null,tab:'bank',newMode:'base',ck:false,table:false,timer:0,view:null,showBoard:false,name:'',kfrom:null,inv:[],pcard:null,alc:{w:3,r:3}};
+const U={wg:{},sd:{},ho:{},spyT:null,net:null,code:null,mode:null,sheet:null,dd:{},gd:{},pd:{},tg:{},tr:{},bg:null,bt:null,tab:'bank',newMode:'base',ck:false,table:false,timer:0,view:null,showBoard:false,name:'',kfrom:null,inv:[],pcard:null,alc:{w:3,r:3}};
 try{U.cb=localStorage.getItem('hx-cb')==='1';U.name=localStorage.getItem('hx-name')||'';U.ck=localStorage.getItem('hx-ck')==='1';U.table=localStorage.getItem('hx-table')==='1';U.timer=+(localStorage.getItem('hx-timer')||0)}catch(e){}
 const VIEW_ES={screen:'Pantalla',control:'Control',player:'Completo'};
 function viewOf(){
@@ -1563,7 +1629,7 @@ function soundCheck(){
     else if(/sube .* a nivel/.test(l))q('improve');
     else if(/movió el ladrón|ahuyenta/.test(l))q('robber');
     else if(/le robó/.test(l))q('steal');
-    else if(/compró una carta|roba una carta|sacó |regala .* Boda|espía/.test(l))q('card');
+    else if(/compró una carta|roba una carta|sacó |regala .* Boda|espía|da 1 (Papel|Tela|Moneda)/.test(l))q('card');
     else if(/propone un intercambio/.test(l))q('offer');
     else if(/intercambió|con el banco/.test(l))q('trade');
     else if(/Se acabó el tiempo/.test(l))q('buzz');
@@ -1738,6 +1804,8 @@ function status(onScreen){
     return S.step==='setS'?{i:S.ck&&second?'city':'settlement',t:`Coloca tu ${what}${second?' · da recursos':''}`,me:true}:{i:'road',t:'Coloca un camino junto a él',me:true};
   }
   const st=S.step;
+  if(st==='sabotage'){const W=S.sab||{owe:{}},n=W.owe[pi];return n?{i:'cards',t:`Saboteador: descarta ${n} carta${n>1?'s':''}`,me:true}:{i:'cards',t:'Saboteador · esperando descartes'}}
+  if(st==='harbor'){const W=S.harbor||{owe:{}},k=W.owe[pi],to=esc(S.players[W.to]?.name||'');return k?{i:'trade',t:`Puerto: elige qué mercancía das a ${to}`,me:true}:{i:'trade',t:`Puerto comercial de ${to} · esperando`}}
   if(st==='wedding'){const W=S.wedding||{owe:{}},n=W.owe[pi],to=esc(S.players[W.to]?.name||'');return n?{i:'cards',t:`Boda: regala ${n} carta${n>1?'s':''} a ${to}`,me:true}:{i:'cards',t:`Boda de ${to} · esperando regalos`}}
   if(st==='discard'){const n=S.discards[pi];return n?{i:'cards',t:`Descarta ${n} cartas`,me:true}:{i:'cards',t:'Salió 7 · esperando descartes'}}
   if(st==='gold')return S.gold[pi]?{i:'cards',t:'Elige tus recursos',me:true}:{i:'cards',t:'Otros eligen recursos'};
@@ -1906,7 +1974,7 @@ function renderGame(){
   renderSheet();
 }
 function playProg(c){
-  const need=PROG[c].need;U.pcard=c;U.sheet=null;U.spyT=null;
+  const need=PROG[c].need;U.pcard=c;U.sheet=null;U.spyT=null;U.ho={};
   if(!need)return send({t:'prog',card:c});
   if(need==='hex2'){U.mode='inventor';U.inv=[];return renderGame()}
   if(need==='edge'){U.mode='diplomat';return renderGame()}
@@ -1947,6 +2015,8 @@ function renderSheet(){
   if(!screenish&&P&&S.step==='discard'&&S.discards?.[pi])kind='discard';
   else if(!screenish&&P&&S.step==='gold'&&S.gold?.[pi])kind='gold';
   else if(!screenish&&P&&S.step==='wedding'&&S.wedding?.owe?.[pi])kind='wedding';
+  else if(!screenish&&P&&S.step==='sabotage'&&S.sab?.owe?.[pi])kind='sabotage';
+  else if(!screenish&&P&&S.step==='harbor'&&S.harbor?.owe?.[pi])kind='harborGive';
   else if(!screenish&&P&&S.step==='steal'&&S.cur===pi)kind='steal';
   else if(U.sheet==='mesa')kind='mesa';
   else if(U.sheet==='stats'&&S.phase==='over')kind='stats';
@@ -1962,6 +2032,12 @@ function renderSheet(){
   }else if(kind==='gold'){
     const need=Math.min(S.gold[pi],RES.reduce((s,k)=>s+S.bank[k],0)),d=U.gd,tot=sumRes(d);
     h=title('cards',`Elige ${need} recurso${need>1?'s':''}`,false)+`<div class="lbl">Lo que ya tienes</div>${handHtml(P,true)}<div class="steps">${RES.map(k=>stepper('gd.'+k,k,d[k]||0,`tienes ${P.res[k]}`)).join('')}</div><button class="pri big" id="ok" ${tot===need?'':'disabled'}>${ic('check',20)} Tomar ${tot}/${need}</button>`;
+  }else if(kind==='sabotage'){
+    const need=S.sab.owe[pi],by=S.players[S.sab.by],d=U.sd,tot=sumRes(d);
+    h=title('cards',`Saboteador: descarta ${need}`,false)+`<p class="desc">${esc(by.name)} jugó el Saboteador. Tú eliges qué cartas descartar.</p><div class="steps">${K.filter(k=>P.res[k]).map(k=>stepper('sd.'+k,k,d[k]||0,`tienes ${P.res[k]}`)).join('')}</div><button class="pri big" id="ok" ${tot===need?'':'disabled'}>${ic('check',20)} Descartar ${tot}/${need}</button>`;
+  }else if(kind==='harborGive'){
+    const got=S.harbor.owe[pi],to=S.players[S.harbor.to];
+    h=title('trade','Puerto comercial',false)+`<p class="desc">${esc(to.name)} te dio 1 ${RES_ES[got]}. Elige qué mercancía le das a cambio.</p><div class="lbl">Tu mano</div>${handHtml(P,true)}${resPick('hg',COM,null,k=>!P.res[k])}`;
   }else if(kind==='wedding'){
     const need=S.wedding.owe[pi],to=S.players[S.wedding.to],d=U.wg,tot=sumRes(d);
     h=title('cards',`Boda: regala ${need} a ${esc(to.name)}`,false)+`<p class="desc">Tú eliges qué cartas das.</p><div class="steps">${K.filter(k=>P.res[k]).map(k=>stepper('wg.'+k,k,d[k]||0,`tienes ${P.res[k]}`)).join('')}</div><button class="pri big" id="ok" ${tot===need?'':'disabled'}>${ic('check',20)} Regalar ${tot}/${need}</button>`;
@@ -1978,6 +2054,19 @@ function renderSheet(){
     if(D.need==='dice'){
       const dsel=(id,val,red)=>`<div class="dsel">${[1,2,3,4,5,6].map(n=>`<button data-alc="${id}.${n}" class="${val===n?'on':''}" aria-label="${n}">${dieSvg(n,red)}</button>`).join('')}</div>`;
       h+=`${dsel('w',U.alc.w)}${dsel('r',U.alc.r,true)}<button class="pri big" id="okp">${ic('dice',20)} Tirar ${U.alc.w+U.alc.r}</button>`;
+    }else if(D.need==='offers'){
+      const elig=S.players.map((p,j)=>j).filter(j=>j!==pi&&COM.some(k=>S.players[j].res[k]));
+      const mineN=RES.reduce((t,k)=>t+P.res[k],0),need=Math.min(elig.length,mineN);
+      const used=k=>Object.values(U.ho).filter(x=>x===k).length;
+      if(!elig.length)h+=`<p class="desc">Ningún rival tiene mercancías ahora.</p>`;
+      else if(!mineN)h+=`<p class="desc">No tienes recursos para ofrecer.</p>`;
+      else{
+        h+=`<p class="desc">Elige qué recurso le das a ${need<elig.length?`${need} de estos rivales`:'cada rival'}. Cada uno escoge qué mercancía te da.</p>`;
+        h+=elig.map(j=>{const Q=S.players[j];return`<div class="horow"><div class="hon"><span class="dot" style="background:${COLORS[Q.color].c}"></span><b>${esc(Q.name)}</b><span class="muted small">${COM.map(k=>Q.res[k]?`${Q.res[k]} ${RES_ES[k]}`:'').filter(Boolean).join(' · ')}</span></div>
+          <div class="rpick sm">${RES.map(k=>{const on=U.ho[j]===k,av=P.res[k]-used(k)+(on?1:0);return`<button data-ho="${j}.${k}" class="rp r-${k} ${on?'on':''}" ${av>0?'':'disabled'} aria-label="${RES_ES[k]}">${resGlyph(k)}</button>`}).join('')}</div></div>`}).join('');
+        const n=Object.keys(U.ho).length;
+        h+=`<button class="pri big" id="okho" ${n===need?'':'disabled'}>${ic('trade',20)} Ofrecer ${n}/${need}</button>`;
+      }
     }else if(c==='spy'&&U.spyT!=null&&S.players[U.spyT]){
       const T=S.players[U.spyT];
       h+=`<div class="lbl">Cartas de ${esc(T.name)} · elige una</div><div class="clist">${T.prog.map(x=>{const X=PROG[x];return`<button class="cc pc-${X.c}" data-spy="${x}"><b>${X.es}</b><span>${X.d}</span></button>`}).join('')||'<p class="desc">Ya no tiene cartas de progreso.</p>'}</div><button id="spyback">${ic('people',18)} Elegir a otro jugador</button>`;
@@ -2051,8 +2140,8 @@ function renderSheet(){
     <button id="leave">${ic('exit',18)} Salir al inicio</button>`;
   }
   box.innerHTML=`<div class="veil" id="veil"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`;
-  const lim=(grp,k)=>grp==='dd'||grp==='tg'||grp==='cg'||grp==='wg'?P.res[k]:grp==='pd'?Math.min(2,S.bank[k]):grp==='gd'?S.bank[k]:9;
-  const cap={dd:S.discards?.[pi],gd:S.gold?.[pi],pd:2,wg:S.wedding?.owe?.[pi]};
+  const lim=(grp,k)=>grp==='dd'||grp==='tg'||grp==='cg'||grp==='wg'||grp==='sd'?P.res[k]:grp==='pd'?Math.min(2,S.bank[k]):grp==='gd'?S.bank[k]:9;
+  const cap={dd:S.discards?.[pi],gd:S.gold?.[pi],pd:2,wg:S.wedding?.owe?.[pi],sd:S.sab?.owe?.[pi]};
   const q=(sel,f)=>box.querySelectorAll(sel).forEach(b=>b.onclick=()=>f(b));
   q('[data-up]',b=>{const[g,k]=b.dataset.up.split('.');const o=U[g];if((o[k]||0)<lim(g,k)&&(cap[g]==null||sumRes(o)<cap[g]))o[k]=(o[k]||0)+1;renderSheet()});
   q('[data-dn]',b=>{const[g,k]=b.dataset.dn.split('.');const o=U[g];if(o[k])o[k]--;renderSheet()});
@@ -2063,6 +2152,7 @@ function renderSheet(){
   if($('#ok'))$('#ok').onclick=async()=>{
     if(kind==='discard'){await send({t:'discard',res:clean(U.dd)});U.dd={}}
     if(kind==='wedding'){await send({t:'give',res:clean(U.wg)});U.wg={}}
+    if(kind==='sabotage'){await send({t:'sabDrop',res:clean(U.sd)});U.sd={}}
     if(kind==='gold'){await send({t:'gold',res:clean(U.gd)});U.gd={}}
     if(kind==='plenty'){const arr=RES.flatMap(k=>Array(U.pd[k]||0).fill(k));U.sheet=null;await send({t:'play',card:'plenty',res:arr});U.pd={}}
   };
@@ -2071,6 +2161,12 @@ function renderSheet(){
   q('[data-alc]',b=>{const[d,n]=b.dataset.alc.split('.');U.alc[d]=+n;renderSheet()});
   if($('#okp'))$('#okp').onclick=()=>{U.sheet=null;send({t:'prog',card:'alchemist',w:U.alc.w,r:U.alc.r})};
   q('[data-pp]',b=>{const c=U.pcard;if(c==='spy'){U.spyT=+b.dataset.pp;renderSheet();return}U.sheet=null;send({t:'prog',card:c,p:+b.dataset.pp})});
+  q('[data-hg]',b=>send({t:'harborGive',res:b.dataset.hg}));
+  q('[data-ho]',b=>{const[j,k]=b.dataset.ho.split('.');if(U.ho[j]===k)delete U.ho[j];else{U.ho[j]=k;
+    const elig=S.players.map((p,x)=>x).filter(x=>x!==pi&&COM.some(c=>S.players[x].res[c])),need=Math.min(elig.length,RES.reduce((t,c)=>t+P.res[c],0));
+    while(Object.keys(U.ho).length>need)delete U.ho[Object.keys(U.ho).find(x=>x!==j)]}
+    renderSheet()});
+  if($('#okho'))$('#okho').onclick=()=>{const offers={...U.ho};U.sheet=null;U.ho={};send({t:'prog',card:'harbor',offers})};
   q('[data-spy]',b=>{const t=U.spyT;U.sheet=null;U.spyT=null;send({t:'prog',card:'spy',p:t,take:b.dataset.spy})});
   if($('#spyback'))$('#spyback').onclick=()=>{U.spyT=null;renderSheet()};
   q('[data-pr]',b=>{const c=U.pcard;U.sheet=null;send({t:'prog',card:c,res:b.dataset.pr})});
