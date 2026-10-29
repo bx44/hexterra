@@ -352,6 +352,50 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
 .alch .dsel button.on{border-color:var(--hl);background:color-mix(in srgb,var(--hl) 25%,var(--panel))}
 .alact{display:grid;grid-template-columns:auto 1fr;gap:8px}
 .alact button{min-height:50px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+
+/* ---- panels open in place of the buttons: the board and your hand stay in view ---- */
+.slot{display:flex;flex-direction:column;gap:8px;min-height:0}
+.g .slot{flex:1 1 auto}
+.g:not(.sheeton) .slot{flex:0 0 auto}
+.slot.sheeton>#dockwrap{display:none}
+#dockwrap{display:flex;flex-direction:column;gap:8px}
+#sheetwrap{min-height:0;display:flex;flex-direction:column;flex:1}
+.sheet.docked{width:100%;max-height:none;border-radius:16px;border:2px solid var(--line);padding:12px;overflow:auto;flex:1;min-height:0;box-shadow:none}
+.sside .slot{flex:1;min-height:0}
+.sside .slot .sheet.docked{background:var(--panel)}
+/* the hand tightens while a panel is open */
+.g.sheeton .hand:not(.mini){gap:4px}
+.g.sheeton .hand:not(.mini) .rc{flex-direction:row;justify-content:center;padding:5px 2px;gap:3px;border-radius:9px}
+.g.sheeton .hand:not(.mini) .rc svg{width:20px;height:20px}
+.g.sheeton .hand:not(.mini) .rc b{font-size:18px}
+.g.sheeton .hand:not(.mini) .rc span{display:none}
+.g.sheeton .handwrap{flex:0 0 auto}
+/* players strip */
+.pstrip{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto}
+.pstrip::-webkit-scrollbar{display:none}
+.pchip{display:flex;align-items:center;gap:5px;padding:5px 9px;border-radius:99px;background:var(--panel);border:1px solid var(--line);white-space:nowrap;font-size:13px;font-weight:700;flex:0 0 auto}
+.pchip.cur{border:2px solid var(--accent)}
+.pchip.me{background:var(--soft)}
+.pchip .dot{width:11px;height:11px}
+.pchip .pn{max-width:70px;overflow:hidden;text-overflow:ellipsis}
+.pchip .pv{font-family:var(--f-display);font-size:16px;font-variant-numeric:tabular-nums}
+.pchip .pc{display:inline-flex;align-items:center;gap:2px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pchip .pc.danger{color:#fff;background:var(--bad);padding:1px 6px;border-radius:99px}
+.st span.warn{background:var(--bad);color:#fff!important;padding:0 6px;border-radius:99px}
+.pstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));overflow:visible}
+.pchip{justify-content:flex-start;min-width:0}
+.pchip .pn{flex:1;min-width:0;max-width:none}
+.sheet.docked>button.big,.sheet.docked .alact{position:sticky;bottom:-12px;margin-bottom:-12px;box-shadow:0 -10px 14px var(--panel)}
+.desc .ic{display:inline-block;vertical-align:-2px}
+
+.pstrip{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:5px}
+.pchip{flex-direction:column;align-items:stretch;gap:2px;padding:5px 9px;border-radius:12px}
+.pchip .pl1,.pchip .pl2{display:flex;align-items:center;gap:5px;min-width:0}
+.pchip .pl2{gap:8px}
+.pchip .pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sheet.docked>button.big:disabled{opacity:1;background:var(--soft);color:var(--muted);border-color:var(--line)}
+.cc .why{color:var(--bad)!important;font-weight:800;display:flex;align-items:center;gap:4px;margin-top:2px}
+.cc:disabled{opacity:.6}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -630,6 +674,58 @@ function openRoads(S,B){
 function newState(mode,me,name,ck,table,timer){
   const code=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random()*24)]).join('');
   return{code,mode,ck:!!ck,table:!!table,timer:+timer||0,cfg:{vp:null,discard:7,friendly:false},deadline:null,paused:null,seed:Math.floor(Math.random()*2**31),phase:'lobby',host:me,pids:table?[]:[me],players:table?[]:[{id:me,name,color:0}],build:{},lines:{},knights:{},log:[],v:1,created:Date.now()};
+}
+
+/* a progress card that would do nothing right now is not spent; this says why (or null if it can be played) */
+function progBlock(S,B,pi,c){
+  const P=S.players[pi],pcs=countPieces(S,pi),mine=Object.values(S.build).filter(b=>b.p===pi),ks=Object.values(S.knights||{}).filter(k=>k.p===pi);
+  const opp=S.players.map((p,j)=>j).filter(j=>j!==pi),myVP=vpOf(S,pi,false);
+  switch(c){
+    case'engineer':
+      if(!mine.some(b=>b.t==='city'))return'No puedes usar el Ingeniero: no tienes ninguna ciudad para la muralla.';
+      if(pcs.wall>=3||!mine.some(b=>b.t==='city'&&!b.wall))return'No puedes usar el Ingeniero: tus ciudades ya tienen muralla.';
+      return null;
+    case'medicine':
+      if(!mine.some(b=>b.t==='settlement'))return'No puedes usar la Medicina: no tienes poblados para convertir en ciudad.';
+      if(pcs.city>=4)return'No puedes usar la Medicina: ya usaste tus 4 ciudades.';
+      return null;
+    case'crane':
+      if(!mine.some(b=>b.t==='city'))return'No puedes usar la Grúa: necesitas una ciudad para mejorar.';
+      if(TRACKS.every(t=>P.imp[t]>=5))return'No puedes usar la Grúa: tus mejoras ya están al máximo.';
+      return null;
+    case'smith':
+      if(!ks.some(k=>k.lvl<(P.imp.politics>=3?3:2)))return'No puedes usar el Herrero: no tienes caballeros que se puedan promover.';
+      return null;
+    case'warlord':
+      if(!ks.some(k=>!k.active))return'No puedes usar el Señor de la guerra: no tienes caballeros inactivos.';
+      return null;
+    case'roadb':
+      if(!B.edges.some((e,j)=>canLine(S,B,j,pi,'road',null)||(MODES[S.mode].ships&&canLine(S,B,j,pi,'ship',null))))return'No puedes usar Construcción de caminos: no hay dónde construir.';
+      return null;
+    case'irrigation':case'mining':{
+      const type=c==='irrigation'?'wheat':'ore';
+      if(!B.hexes.some(h=>h.type===type&&h.v.some(v=>S.build[v]&&S.build[v].p===pi)))return`No puedes usar ${PROG[c].es}: no tienes construcciones junto a ${c==='irrigation'?'campos de trigo':'montañas'}.`;
+      return null}
+    case'merchant':
+      if(!B.hexes.some(h=>RES.includes(h.type)&&h.v.some(v=>S.build[v]&&S.build[v].p===pi)))return'No puedes usar el Mercader: no tienes construcciones junto a una loseta de recurso.';
+      return null;
+    case'deserter':
+      if(!opp.some(j=>ks.length>=0&&Object.values(S.knights||{}).some(k=>k.p===j)))return'No puedes usar el Desertor: ningún rival tiene caballeros.';
+      return null;
+    case'spy':
+      if(!opp.some(j=>(S.players[j].prog||[]).length))return'No puedes usar el Espía: ningún rival tiene cartas de progreso.';
+      return null;
+    case'mmerchant':
+      if(!opp.some(j=>vpOf(S,j,false)>myVP&&sumRes(S.players[j].res)))return'No puedes usar el Mercader maestro: nadie con más puntos tiene cartas.';
+      return null;
+    case'intrigue':
+      if(!Object.entries(S.knights||{}).some(([v,k])=>k.p!==pi&&B.verts[v].e.some(e=>S.lines[e]&&S.lines[e].p===pi)))return'No puedes usar la Intriga: no hay caballeros rivales junto a tus caminos.';
+      return null;
+    case'diplomat':
+      if(!openRoads(S,B).length)return'No puedes usar el Diplomático: no hay caminos abiertos.';
+      return null;
+  }
+  return null;
 }
 
 /* ---- the rules: every action goes through here ---- */
@@ -1026,6 +1122,7 @@ function act(S0,me,a,rand){
       const opp=S.players.map((p,j)=>j).filter(j=>j!==pi);
       const myVP=vpOf(S,pi,false);
       const remove=()=>{P.prog.splice(i,1);S.pdeck[D.c].unshift(c)};
+      const why=progBlock(S,B,pi,c);if(why)err(why);
       switch(c){
         case'alchemist':{const w=+a.w,r=+a.r;if(!(w>=1&&w<=6&&r>=1&&r<=6))err('Elige valores del 1 al 6.');remove();log(`${P.name} usa el Alquimista`);doRoll(w,r);break}
         case'inventor':{
@@ -2021,7 +2118,7 @@ function renderScreen(){
       ${S.ck?barbHtml():''}
       ${o?`<div class="offer big"><span class="dot" style="background:${COLORS[S.players[o.from].color].c}"></span><span class="og">${ic('trade',20)}<span>da</span>${pips(o.give)}<span>pide</span>${pips(o.get)}</span>${o.acc.length?`<span class="small">${ic('check',14)} ${o.acc.map(i=>esc(S.players[i].name)).join(', ')}</span>`:''}</div>`:''}
       ${S.phase==='over'?statsHtml(true):`<div class="players">${playersHtml}</div>
-      <div class="log">${S.log.slice(-8).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div>`}
+      <div class="slot" id="dockslot"><div id="dockwrap" class="log">${S.log.slice(-8).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div><div id="sheetwrap"></div></div>`}
     </aside>
   </div>`;
   $('#mesa').onclick=()=>{U.sheet='mesa';renderSheet()};bindZoom($('#board'));bindFS();
@@ -2063,9 +2160,9 @@ function renderGame(){
   /* while choosing a spot on a phone, the map takes the whole middle: no dock, no hand */
   const focus=(need||alch)&&!wide;
   autoFrame(T0,need);
-  const panel=`${top}${stat}${showBoard&&!wide?`<div class="gmid boardbox ${need?'ctrlboard':''}" id="board">${boardSvg()}${zoomCtl()}</div>`:''}
+  const panel=`${top}${stat}${playersStrip(pi)}${showBoard&&!wide?`<div class="gmid boardbox ${need?'ctrlboard':''}" id="board">${boardSvg()}${zoomCtl()}</div>`:''}
     ${!showBoard?`<div class="gmid handwrap">${handBlock}</div>`:focus?'':handBlock}
-    ${alch?alchPanel():focus?'':offerHtml(pi)+dockHtml(pi)}`;
+    ${alch?alchPanel():focus?'':`<div class="slot" id="dockslot"><div id="dockwrap">${offerHtml(pi)}${dockHtml(pi)}</div><div id="sheetwrap"></div></div>`}`;
   $('#app').innerHTML=`${comDefs()}${wide?`<div class="gwide"><div class="boardbox wb" id="board">${boardSvg()}${zoomCtl()}</div><div class="g">${panel}</div></div>`:`<div class="g">${panel}</div>`}`;
   const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};
   if($('#board')){$('#board').onclick=boardClick;bindZoom($('#board'))}
@@ -2133,6 +2230,8 @@ function stepper(id,k,val,sub){return`<div class="stp"><span class="sk r-${k}">$
 function resPick(attr,list,sel,dis){return`<div class="rpick ${list.length===8?'g4':''}">${list.map(k=>`<button data-${attr}="${k}" class="rp r-${k} ${sel===k?'on':''}" ${dis&&dis(k)?'disabled':''}>${resGlyph(k)}<span>${RES_ES[k]}</span></button>`).join('')}</div>`}
 function renderSheet(){
   const box=$('#sheet');if(!G||G.phase==='lobby'){box.innerHTML='';return}
+  const slot=document.getElementById('dockslot'),wrap=document.getElementById('sheetwrap');
+  const shut=()=>{box.innerHTML='';if(wrap)wrap.innerHTML='';if(slot)slot.classList.remove('sheeton');document.querySelector('.g')?.classList.remove('sheeton')};
   const S=G,B=board(S),pi=myIdx(),P=S.players[pi],K=dispKeys(S),mine=S.cur===pi&&S.phase==='play';
   let h='',kind=null;
   const screenish=viewOf()==='screen'||pi<0;
@@ -2146,10 +2245,10 @@ function renderSheet(){
   else if(U.sheet==='stats'&&S.phase==='over')kind='stats';
   else if(P&&!screenish&&['cards','imp','emo'].includes(U.sheet))kind=U.sheet;
   else if(P&&!screenish&&U.sheet==='counter'&&S.offer&&S.offer.from!==pi)kind='counter';
-  else if(U.sheet==='prog'&&U.pcard==='alchemist'){box.innerHTML='';return}
+  else if(U.sheet==='prog'&&U.pcard==='alchemist'){shut();return}
   else if(P&&!screenish&&U.sheet&&mine&&S.step==='main')kind=U.sheet;
   else U.sheet=null;
-  if(!kind){box.innerHTML='';return}
+  if(!kind){shut();return}
   const title=(i,t,x)=>`<div class="sh">${ic(i,22)}<h3>${t}</h3>${x===false?'':`<button class="iconb" id="x" aria-label="Cerrar">${ic('close',20)}</button>`}</div>`;
   if(kind==='discard'){
     const need=S.discards[pi],d=U.dd,tot=sumRes(d);
@@ -2201,8 +2300,8 @@ function renderSheet(){
     }else h+=resPick('pr',D.need==='com'?COM:D.need==='res'?RES:HAND8);
   }else if(kind==='cards'){
     if(S.ck){
-      h=title('cards',`Progreso ${P.prog.length}/4`)+`<div class="clist">${P.prog.map(c=>{const D=PROG[c],ok=mine&&(c==='alchemist'?S.step==='roll':S.step==='main');
-        return`<button class="cc pc-${D.c}" data-prog="${c}" ${ok?'':'disabled'}><b>${D.es}</b><span>${D.d}</span></button>`}).join('')||'<p class="desc">Aún no tienes cartas de progreso.</p>'}</div>
+      h=title('cards',`Progreso ${P.prog.length}/4`)+`<div class="clist">${P.prog.map(c=>{const D=PROG[c],when=mine&&(c==='alchemist'?S.step==='roll':S.step==='main'),why=when?progBlock(S,B,pi,c):null,ok=when&&!why;
+        return`<button class="cc pc-${D.c}" data-prog="${c}" ${ok?'':'disabled'}><b>${D.es}</b><span>${D.d}</span>${why?`<span class="why">${ic('close',13)} ${esc((x=>x.charAt(0).toUpperCase()+x.slice(1))(why.replace(/^No puedes usar [^:]+: /,'')))}</span>`:''}</button>`}).join('')||'<p class="desc">Aún no tienes cartas de progreso.</p>'}</div>
         ${P.vpc.length?`<p class="desc">${ic('check',14)} Puntos guardados: ${P.vpc.map(c=>c==='defender'?'Defensor':PROG[c].es).join(', ')}</p>`:''}`;
     }else{
       const all=[...P.dev.map(d=>({d,n:false})),...P.newDev.map(d=>({d,n:true}))],grp={};all.forEach(x=>{const k=x.d+(x.n?'*':'');grp[k]=(grp[k]||0)+1});
@@ -2266,15 +2365,19 @@ function renderSheet(){
     <button id="leave">${ic('exit',18)} Salir al inicio</button>
     ${S.host===ME?(U.closeAsk?`<div class="ask"><span>¿Cerrar la partida para todos? Nadie podrá volver a entrar.</span><div class="row"><button class="danger" id="closeYes">${ic('trash',18)} Sí, cerrar</button><button id="closeNo">No</button></div></div>`:`<button class="dangerl" id="closeG">${ic('trash',18)} Cerrar partida para todos</button>`):''}`;
   }
-  box.innerHTML=`<div class="veil" id="veil"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`;
+  let root=box;
+  if(slot&&wrap){
+    box.innerHTML='';wrap.innerHTML=`<div class="sheet docked" role="region" aria-label="Panel">${h}</div>`;
+    slot.classList.add('sheeton');document.querySelector('.g')?.classList.add('sheeton');root=wrap;
+  }else box.innerHTML=`<div class="veil" id="veil"><div class="sheet" role="dialog" aria-modal="true">${h}</div></div>`;
   const lim=(grp,k)=>grp==='dd'||grp==='tg'||grp==='cg'||grp==='wg'||grp==='sd'?P.res[k]:grp==='pd'?Math.min(2,S.bank[k]):grp==='gd'?S.bank[k]:9;
   const cap={dd:S.discards?.[pi],gd:S.gold?.[pi],pd:2,wg:S.wedding?.owe?.[pi],sd:S.sab?.owe?.[pi]};
-  const q=(sel,f)=>box.querySelectorAll(sel).forEach(b=>b.onclick=()=>f(b));
+  const q=(sel,f)=>root.querySelectorAll(sel).forEach(b=>b.onclick=()=>f(b));
   q('[data-up]',b=>{const[g,k]=b.dataset.up.split('.');const o=U[g];if((o[k]||0)<lim(g,k)&&(cap[g]==null||sumRes(o)<cap[g]))o[k]=(o[k]||0)+1;renderSheet()});
   q('[data-dn]',b=>{const[g,k]=b.dataset.dn.split('.');const o=U[g];if(o[k])o[k]--;renderSheet()});
   const close=()=>{U.sheet=null;U.pcard=null;renderSheet()};
   if($('#x'))$('#x').onclick=close;
-  $('#veil').onclick=e=>{if(e.target.id==='veil'&&!['discard','gold','steal'].includes(kind))close()};
+  if($('#veil'))$('#veil').onclick=e=>{if(e.target.id==='veil'&&!['discard','gold','steal'].includes(kind))close()};
   const clean=o=>Object.fromEntries(Object.entries(o).filter(([k,v])=>v>0));
   if($('#ok'))$('#ok').onclick=async()=>{
     if(kind==='discard'){await send({t:'discard',res:clean(U.dd)});U.dd={}}
@@ -2549,6 +2652,17 @@ function alchPanel(){
     <p class="desc">${sum===7?'Saldría 7: no hay producción y se mueve al ladrón.':`Saldría <b>${sum}</b>: produce${hits===1?' 1 loseta':` ${hits} losetas`}, marcadas en el mapa.`}</p>
     <div class="alact"><button id="alcx">${ic('close',18)} Cancelar</button><button class="pri big" id="okp">${ic('dice',20)} Tirar ${sum}</button></div>
   </div>`;
+}
+
+/* everyone at a glance: points, cards in hand (red when a 7 would cost them half), development / progress cards */
+function playersStrip(pi){
+  const S=G;
+  return`<div class="pstrip" role="list" aria-label="Jugadores">${S.players.map((p,i)=>{
+    const n=p.res?sumRes(p.res):0,danger=S.phase==='play'&&n>handLimit(S,i);
+    const dev=S.ck?(p.prog||[]).length:((p.dev||[]).length+(p.newDev||[]).length);
+    return`<div class="pchip ${S.cur===i&&S.phase!=='over'?'cur':''} ${i===pi?'me':''}" role="listitem" title="${esc(p.name)}">
+      <span class="pl1"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="pn">${esc(p.name)}</span><b class="pv" aria-label="puntos">${vpOf(S,i,i===pi||S.phase==='over')}</b></span>
+      <span class="pl2"><span class="pc ${danger?'danger':''}" data-cc="${p.id}" aria-label="${n} cartas${danger?', en peligro con el ladrón':''}">${ic('cards',13)}${n}</span><span class="pc" aria-label="${dev} cartas de ${S.ck?'progreso':'desarrollo'}">${ic('dev',13)}${dev}</span></span></div>`}).join('')}</div>`;
 }
 
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
