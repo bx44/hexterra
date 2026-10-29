@@ -453,6 +453,41 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
   .gwide .db{min-height:56px;padding:5px 2px}
   .gwide .db.wide{min-height:46px}
 }
+
+/* ---- log rows ---- */
+.log{gap:2px}
+.lrow{display:flex;align-items:flex-start;gap:7px;padding:3px 0;color:var(--ink);font-size:13px;line-height:1.3}
+.lrow .li{flex:0 0 18px;display:grid;place-items:center;color:var(--muted);padding-top:1px}
+.lrow .lb{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 5px}
+.lrow.dim .lb{color:var(--muted)}
+.lrow.win{padding:6px 8px;border-radius:10px;background:color-mix(in srgb,var(--hl) 22%,transparent)}
+.lrow.win .li,.lrow.pts .li .gold,.gold{color:#d6a51f}
+.lturn{display:flex;align-items:center;gap:6px;margin:5px 0 1px;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.lturn::after{content:"";flex:1;height:1px;background:var(--line)}
+.log div.lturn:first-child,.log .lrow:first-child{font-weight:inherit}
+.lp{display:inline-flex;align-items:center;gap:4px;font-weight:800;color:var(--ink)}
+.lp i{width:9px;height:9px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1.5px rgba(0,0,0,.3)}
+.lr{display:inline-flex;align-items:center;gap:2px;padding:1px 5px 1px 3px;border-radius:6px;color:#fff;font-size:12px;line-height:1.3}
+.lr svg{width:15px;height:15px}
+.lr b{font-variant-numeric:tabular-nums}
+.lgrp{display:inline-flex;align-items:center;gap:3px;margin-right:4px}
+.lbig{font-family:var(--f-display);font-size:16px;line-height:1}
+.lbig.bad{color:var(--bad)}
+.lneg{color:var(--bad);font-variant-numeric:tabular-nums}
+.lw{color:var(--muted);font-weight:600}
+.arr{color:var(--muted);font-weight:800}
+.lev svg{display:block}
+.lvl.sm i{width:12px;height:6px}
+/* ---- why the winner won ---- */
+.why{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;border:2px solid var(--hl);background:color-mix(in srgb,var(--hl) 10%,var(--panel));margin-bottom:6px}
+.why .wh{display:flex;align-items:center;gap:6px;font-family:var(--f-display);font-weight:800;font-size:16px}
+.why .wh .ic{color:#d6a51f}
+.why .wl{display:flex;flex-direction:column;gap:3px}
+.why .wi{display:grid;grid-template-columns:18px 1fr auto;gap:6px;align-items:center;font-size:13.5px;font-weight:700}
+.why .wi b{font-family:var(--f-display);font-size:15px;color:var(--accent)}
+.why.compact{padding:8px 10px}
+.lpts{display:inline-flex;align-items:center;gap:2px;color:#2a1d00;background:#e8b93a;border-radius:99px;padding:0 6px;font-size:12px}
+.lpts .ic{color:#2a1d00}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -1755,6 +1790,8 @@ const IC={
   play:'<path d="M7 4 L20 12 L7 20 Z" fill="currentColor" stroke="none"/>',
   people:'<circle cx="9" cy="8" r="3.4" fill="currentColor" stroke="none"/><circle cx="17" cy="9.5" r="2.6" fill="currentColor" stroke="none" opacity=".7"/><path d="M3 20 C3 15 15 15 15 20 Z M14 20 C14 17 21 16 21 20 Z" fill="currentColor" stroke="none"/>',
   close:'<path d="M6 6 L18 18 M18 6 L6 18" stroke-width="2.6"/>',
+  trophy:'<path d="M7 4 H17 V9 A5 5 0 0 1 7 9 Z" fill="currentColor" stroke="none"/><path d="M7 6 H4 V8 A3 3 0 0 0 7 11 M17 6 H20 V8 A3 3 0 0 1 17 11 M12 14 V18 M8 20 H16"/>',
+  star:'<path d="M12 3 L14.6 9 L21 9.6 L16.2 13.8 L17.7 20.2 L12 16.8 L6.3 20.2 L7.8 13.8 L3 9.6 L9.4 9 Z" fill="currentColor" stroke="none"/>',
   check:'<path d="M5 12.5 L10 17 L19 7" stroke-width="2.8"/>',
   board:'<path d="M12 2.5 L20.5 7.25 V16.75 L12 21.5 L3.5 16.75 V7.25 Z"/><path d="M12 2.5 V21.5 M3.5 7.25 L20.5 16.75 M20.5 7.25 L3.5 16.75" opacity=".5"/>',
   robber:'<path d="M8 21 Q7 10 10 9 A3.2 3.2 0 1 1 14 9 Q17 10 16 21 Z" fill="currentColor" stroke="none"/>',
@@ -2192,7 +2229,7 @@ function renderScreen(){
       ${S.ck?barbHtml():''}
       ${o?`<div class="offer big"><span class="dot" style="background:${COLORS[S.players[o.from].color].c}"></span><span class="og">${ic('trade',20)}<span>da</span>${pips(o.give)}<span>pide</span>${pips(o.get)}</span>${o.acc.length?`<span class="small">${ic('check',14)} ${o.acc.map(i=>esc(S.players[i].name)).join(', ')}</span>`:''}</div>`:''}
       ${S.phase==='over'?statsHtml(true):`<div class="players">${playersHtml}</div>
-      <div class="slot" id="dockslot"><div id="dockwrap" class="log">${S.log.slice(-8).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div><div id="sheetwrap"></div></div>`}
+      <div class="slot" id="dockslot"><div id="dockwrap" class="log">${logList(10)}</div><div id="sheetwrap"></div></div>`}
     </aside>
   </div>`;
   $('#mesa').onclick=()=>{U.sheet='mesa';renderSheet()};bindZoom($('#board'));bindFS();
@@ -2237,7 +2274,7 @@ function renderGame(){
   const panel=`${top}${stat}${playersStrip(pi)}${showBoard&&!wide?`<div class="gmid boardbox ${need?'ctrlboard':''}" id="board">${boardSvg()}${zoomCtl()}</div>`:''}
     ${!showBoard?`<div class="gmid handwrap">${handBlock}</div>`:focus?'':handBlock}
     ${alch?alchPanel():focus?'':`<div class="slot" id="dockslot"><div id="dockwrap">${offerHtml(pi)}${dockHtml(pi)}</div><div id="sheetwrap"></div></div>`}
-    ${wide&&!alch?`<div class="wlog" aria-label="Bitácora"><div class="lbl">Bitácora</div><div class="log">${S.log.slice(-30).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div></div>`:''}`;
+    ${wide&&!alch?`<div class="wlog" aria-label="Bitácora"><div class="lbl">Bitácora</div><div class="log">${S.phase==='over'?winExplain(S.winner,true):''}${logList(30)}</div></div>`:''}`;
   $('#app').innerHTML=`${comDefs()}${wide?`<div class="gwide"><div class="boardbox wb" id="board">${boardSvg()}${zoomCtl()}</div><div class="g">${panel}</div></div>`:`<div class="g">${panel}</div>`}`;
   const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};
   if($('#board')){$('#board').onclick=boardClick;bindZoom($('#board'));placePop()}
@@ -2441,7 +2478,7 @@ function renderSheet(){
     <button id="snd2">${ic(SND.on?'snd':'mute',18)} ${SND.on?'Sonido activado':'Sonido apagado'}</button>
     ${fsOK()?`<button id="fs2">${ic(isFS()?'fsx':'fs',18)} ${isFS()?'Salir de pantalla completa':'Pantalla completa'}</button>`:(typeof INSTALL_HINT!=='undefined'&&INSTALL_HINT?`<p class="desc">${ic('fs',14)} ${INSTALL_HINT}</p>`:'')}
     ${S.timer&&(S.host===ME||mine)?`<button id="pz2">${ic(S.paused!=null?'play':'pause',18)} ${S.paused!=null?'Reanudar tiempo':'Pausar tiempo'}</button>`:''}
-    <div class="lbl">Bitácora</div><div class="log">${S.log.slice(-12).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div>
+    <div class="lbl">Bitácora</div><div class="log">${logList(14)}</div>
     <p class="desc">${esc(modeName(S))} · gana con ${targetOf(S)} · código <b class="code">${S.code}</b></p>
     <button id="leave">${ic('exit',18)} Salir al inicio</button>
     ${S.host===ME?(U.closeAsk?`<div class="ask"><span>¿Cerrar la partida para todos? Nadie podrá volver a entrar.</span><div class="row"><button class="danger" id="closeYes">${ic('trash',18)} Sí, cerrar</button><button id="closeNo">No</button></div></div>`:`<button class="dangerl" id="closeG">${ic('trash',18)} Cerrar partida para todos</button>`):''}`;
@@ -2613,6 +2650,7 @@ function statsHtml(big){
   const per=order.map(i=>`<tr><td><span class="dot" style="background:${COLORS[S.players[i].color].c}"></span> ${esc(S.players[i].name)}</td><td>${st.prod[i]||0}</td><td>${st.stole[i]||0}</td><td>${st.lost[i]||0}</td><td>${st.trades[i]||0}</td></tr>`).join('');
   return`<div class="stats ${big?'big':''}">
     ${big?'':`<div class="wintitle">${ic('check',20)} Ganó ${esc(S.players[S.winner].name)}</div>`}
+    ${winExplain(S.winner,false)}
     <div class="srows">${rows}</div>
     <div class="lbl">Dados · ${tot} tiradas <span class="muted" style="text-transform:none;letter-spacing:0">(línea punteada: lo esperado)</span></div>
     <svg class="hist" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cuántas veces salió cada número">${bars}</svg>
@@ -2806,6 +2844,83 @@ function popAct(j){
   if(!o||!o.ok){renderGame();return}
   if(o.a.mode){U.mode=o.a.mode;U.kfrom=o.a.v;renderGame();return}
   send(o.a);
+}
+
+/* ---------- the log as pictures ---------- */
+const RES_BY_ES=Object.fromEntries(Object.entries(RES_ES).map(([k,v])=>[v,k]));
+const reEsc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function lp(name){const p=G.players.find(x=>x.name===name);return p?`<span class="lp"><i style="background:${COLORS[p.color].c}"></i>${esc(name)}</span>`:`<b>${esc(name)}</b>`}
+function rchip(n,es){const k=RES_BY_ES[es];return k?`<span class="lr r-${k}" title="${esc(es)}">${resGlyph(k)}${n!=null?`<b>${esc(String(n))}</b>`:''}</span>`:esc((n!=null?n+' ':'')+es)}
+const BUILD_IC={poblado:'settlement',ciudad:'city',camino:'road',barco:'ship',muralla:'wall'};
+const TRACK_BY_ES=Object.fromEntries(Object.entries(TRACK_ES).map(([k,v])=>[v,k]));
+function plainLine(line){
+  let h=esc(line);
+  const names=G.players.map(p=>p.name).filter(Boolean).sort((a,b)=>b.length-a.length);
+  const RESN=Object.values(RES_ES).filter(x=>RES_BY_ES[x]&&!['Oro','Desierto','Mar'].includes(x));
+  h=h.replace(new RegExp('(\\+?\\d+) ('+RESN.map(reEsc).join('|')+')\\b','g'),(m,n,r)=>rchip(n,r));
+  if(names.length)h=h.replace(new RegExp('(^|[^\\wÁÉÍÓÚáéíóúñÑ])('+names.map(x=>reEsc(esc(x))).join('|')+')(?![\\wÁÉÍÓÚáéíóúñÑ])','g'),(m,pre,n)=>pre+lp(n.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')));
+  return h;
+}
+function logRow(line){
+  let m;const row=(icon,body,cls)=>`<div class="lrow ${cls||''}"><span class="li">${icon}</span><span class="lb">${body}</span></div>`;
+  if((m=line.match(/^Turno de (.+)$/)))return`<div class="lturn">${lp(m[1])}</div>`;
+  if((m=line.match(/^Fin de la colocación\. Turno de (.+)$/)))return`<div class="lturn">${ic('dice',14)} ¡A jugar! ${lp(m[1])}</div>`;
+  if((m=line.match(/^¡(.+) gana con (\d+) puntos!$/)))return row(ic('trophy',18),`${lp(m[1])} gana con <b class="lbig">${m[2]}</b> ${ic('star',13)}`,'win');
+  if((m=line.match(/^(.+) tiró (\d+)(?: · (.+))?$/))){const ev=m[3]&&Object.entries(EVENT_ES).find(([k,v])=>v===m[3]);
+    return row(ic('dice',16),`${lp(m[1])} <b class="lbig ${m[2]==='7'?'bad':''}">${m[2]}</b>${ev?`<span class="lev">${eventSvg(ev[0]).replace(/width="34" height="34"/,'width="18" height="18"')}</span>`:''}`,'roll')}
+  const segs=line.split(' · ');
+  if(segs.length&&segs.every(x=>{const q=x.match(/^(.+) \+\d+ (\S+)$/);return q&&G.players.some(p=>p.name===q[1])&&RES_BY_ES[q[2]]})){const by={};segs.forEach(x=>{const q=x.match(/^(.+) \+(\d+) (\S+)$/);(by[q[1]]=by[q[1]]||[]).push(rchip('+'+q[2],q[3]))});
+    return row(ic('cards',16),Object.entries(by).map(([n,cs])=>`<span class="lgrp">${lp(n)}${cs.join('')}</span>`).join(''),'prod')}
+  if((m=line.match(/^(.+) recibe (.+)$/)))return row(ic('cards',16),`${lp(m[1])}${m[2].split(', ').map(r=>rchip(null,r)).join('')}`,'prod');
+  if((m=line.match(/^(.+) cambió (\d+) (\S+) por 1 (\S+) con el banco$/)))return row(ic('bank',16),`${lp(m[1])}${rchip(m[2],m[3])}<span class="arr">→</span>${rchip(1,m[4])}`);
+  if((m=line.match(/^(.+) construyó una? (poblado|ciudad|camino|barco|muralla)$/)))return row(ic(BUILD_IC[m[2]],16),`${lp(m[1])} <span class="lw">${m[2]}</span>`,'build');
+  if((m=line.match(/^(.+) intercambió con (.+)$/)))return row(ic('trade',16),`${lp(m[1])}<span class="arr">⇄</span>${lp(m[2])}`);
+  if((m=line.match(/^(.+) (acepta|rechaza) el intercambio$/)))return row(ic(m[2]==='acepta'?'check':'close',16),`${lp(m[1])} <span class="lw">${m[2]}</span>`,m[2]==='rechaza'?'dim':'');
+  if((m=line.match(/^(.+) (propone un intercambio|hace una contraoferta)$/)))return row(ic('trade',16),`${lp(m[1])} <span class="lw">${m[2]==='propone un intercambio'?'ofrece':'contraoferta'}</span>`,'dim');
+  if((m=line.match(/^(.+) le robó una carta a (.+)$/)))return row(ic('robber',16),`${lp(m[1])}<span class="arr">←</span>${ic('cards',13)}${lp(m[2])}`);
+  if((m=line.match(/^(.+) movió el ladrón$/)))return row(ic('robber',16),`${lp(m[1])} <span class="lw">mueve al ladrón</span>`);
+  if((m=line.match(/^(.+) (descartó|descarta) (\d+)(.*)$/)))return row(ic('cards',16),`${lp(m[1])} <b class="lneg">−${m[3]}</b>${m[4]?` <span class="lw">${esc(m[4].trim())}</span>`:''}`);
+  if((m=line.match(/^(.+) roba una carta de (\S+)$/))){const tr=TRACK_BY_ES[m[2]];return row(`<span style="color:${TCOL[tr]||'inherit'}">${ic('dev',16)}</span>`,`${lp(m[1])} <span class="lw">+1 ${esc(m[2])}</span>`)}
+  if((m=line.match(/^(.+) sube (\S+) a nivel (\d)$/))){const tr=TRACK_BY_ES[m[2]];return row(`<span style="color:${TCOL[tr]}">${ic('improve',16)}</span>`,`${lp(m[1])} <span class="lw">${esc(m[2])}</span> <span class="lvl sm" style="--tc:${TCOL[tr]}">${[1,2,3,4,5].map(i=>`<i class="${i<=+m[3]?'f':''}"></i>`).join('')}</span>`)}
+  if((m=line.match(/^¡Empieza la partida! (.+) coloca primero$/)))return`<div class="lturn">${ic('dice',14)} Empieza · ${lp(m[1])}</div>`;
+  if((m=line.match(/^(.+) (puso un caballero|activó un caballero|promovió un caballero a|movió un caballero)(.*)$/))){const w={'puso un caballero':'pone','activó un caballero':'activa','promovió un caballero a':'sube a','movió un caballero':'mueve'}[m[2]];
+    return row(ic(m[2].startsWith('activó')?'activate':'knight',16),`${lp(m[1])} <span class="lw">${w}${m[3]?' '+esc(m[3].trim()):''}</span>`)}
+  if((m=line.match(/^(.+) tiene la ruta más larga \((\d+)\)$/)))return row(`<span class="gold">${ic('road',16)}</span>`,`${lp(m[1])} <span class="lw">ruta más larga</span> <b>${m[2]}</b> <span class="gold">${ic('star',13)}</span>`,'pts');
+  if((m=line.match(/^(.+) tiene el ejército más grande$/)))return row(`<span class="gold">${ic('knight',16)}</span>`,`${lp(m[1])} <span class="lw">ejército más grande</span> <span class="gold">${ic('star',13)}</span>`,'pts');
+  if((m=line.match(/^(.+) pone al Mercader en (\S+)$/)))return row(ic('trade',16),`${lp(m[1])} <span class="lw">Mercader</span>${rchip(null,m[2])}`);
+  if((m=line.match(/^(.+) toma (\d+) carta\(s\) de (.+)$/)))return row(ic('dev',16),`${lp(m[1])}<span class="arr">←</span>${ic('cards',13)}<b>${m[2]}</b>${lp(m[3])}`);
+  if((m=line.match(/^(.+) da 1 (\S+) a (.+)$/)))return row(ic('trade',16),`${lp(m[1])}${rchip(1,m[2])}<span class="arr">→</span>${lp(m[3])}`);
+  if((m=line.match(/^(.+) regala (\d+) carta\(s\) a (.+) por la Boda$/)))return row(ic('dev',16),`${lp(m[1])}<span class="arr">→</span>${ic('cards',13)}<b>${m[2]}</b>${lp(m[3])} <span class="lw">Boda</span>`);
+  if((m=line.match(/^(.+) espía a (.+) y le quita (.+)$/)))return row(ic('eye',16),`${lp(m[1])}<span class="arr">←</span><span class="lw">${esc(m[3])}</span>${lp(m[2])}`);
+  if((m=line.match(/^(.+) gana (Casa de comercio|Fortaleza|Acueducto)$/))){const tr={'Casa de comercio':'trade','Fortaleza':'politics','Acueducto':'science'}[m[2]];return row(`<span style="color:${TCOL[tr]}">${ic('improve',16)}</span>`,`${lp(m[1])} <span class="lw">${m[2]}</span>`)}
+  if(/\+\d+ puntos?/.test(line))return row(`<span class="gold">${ic('star',16)}</span>`,plainLine(line).replace(/:? ?\+(\d+) puntos?/,(m,n)=>` <b class="lpts">+${n} ${ic('star',12)}</b>`),'pts');
+  if(/bárbaros/i.test(line))return row(ic('ship',16),plainLine(line),'barb');
+  if((m=line.match(/^(.+) (usa|jugó|juega) (.+)$/)))return row(ic('dev',16),`${lp(m[1])} <span class="lw">${plainLine(m[3])}</span>`);
+  return row(ic('people',14),plainLine(line),'dim');
+}
+function logList(n){return G.log.slice(-n).reverse().map(logRow).join('')}
+
+/* ---------- why the winner won ---------- */
+function vpBreakdown(S,i){
+  const c=countPieces(S,i),P=S.players[i],L=[];
+  if(c.settlement)L.push(['settlement',`${c.settlement} poblado${c.settlement>1?'s':''}`,c.settlement]);
+  if(c.city)L.push(['city',`${c.city} ciudad${c.city>1?'es':''}`,2*c.city]);
+  Object.values(S.build).filter(b=>b.p===i&&b.metro).forEach(b=>L.push(['improve',`Metrópolis de ${TRACK_ES[b.metro]}`,2]));
+  if(S.longest===i)L.push(['road',`Ruta más larga (${(S.roadLen||[])[i]||5})`,2]);
+  if(S.army===i)L.push(['knight',`Ejército más grande (${P.knights})`,2]);
+  if((P.islands||[]).length)L.push(['ship',`${P.islands.length} isla${P.islands.length>1?'s':''} nueva${P.islands.length>1?'s':''}`,2*P.islands.length]);
+  const dv=[...(P.dev||[]),...(P.newDev||[])].filter(d=>d==='vp').length;if(dv)L.push(['dev',`${dv} carta${dv>1?'s':''} de punto`,dv]);
+  const cnt={};(P.vpc||[]).forEach(x=>cnt[x]=(cnt[x]||0)+1);
+  Object.entries(cnt).forEach(([x,n])=>L.push([x==='defender'?'knight':'dev',x==='defender'?`Defensor de la isla${n>1?' ×'+n:''}`:`${PROG[x].es}${n>1?' ×'+n:''}`,n]));
+  if(S.merchant&&S.merchant.p===i)L.push(['trade','Mercader',1]);
+  return L;
+}
+function winExplain(i,compact){
+  const S=G;if(i==null||!S.players[i])return'';
+  const P=S.players[i],L=vpBreakdown(S,i),tot=L.reduce((t,x)=>t+x[2],0),top=[...L].sort((a,b)=>b[2]-a[2])[0];
+  return`<div class="why ${compact?'compact':''}"><div class="wh">${ic('trophy',18)} ¿Por qué ganó ${lp(P.name)}?</div>
+    <p class="desc">Llegó a <b>${tot}</b> de ${targetOf(S)} puntos${S.turnNo?` en el turno ${S.turnNo}`:''}.${top?` Su mayor fuente: ${esc(top[1].toLowerCase())} (${top[2]} pts).`:''}</p>
+    <div class="wl">${L.map(([icn,t,p])=>`<div class="wi">${ic(icn,15)}<span>${esc(t)}</span><b>+${p}</b></div>`).join('')}</div></div>`;
 }
 
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
