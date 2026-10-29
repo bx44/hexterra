@@ -489,6 +489,8 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
 .lpts{display:inline-flex;align-items:center;gap:2px;color:#2a1d00;background:#e8b93a;border-radius:99px;padding:0 6px;font-size:12px}
 .lpts .ic{color:#2a1d00}
 .modes{grid-template-columns:repeat(2,minmax(0,1fr))}
+.rules{display:flex;flex-direction:column;gap:8px}
+.toggle:disabled{opacity:.75;cursor:default}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -514,12 +516,21 @@ const EVENT_ES={ship:'Barco bárbaro',trade:'Puerta amarilla',politics:'Puerta a
 const COST={road:{wood:1,brick:1},ship:{wood:1,sheep:1},settlement:{wood:1,brick:1,sheep:1,wheat:1},city:{wheat:2,ore:3},dev:{sheep:1,wheat:1,ore:1},
   knight:{sheep:1,ore:1},promote:{sheep:1,ore:1},activate:{wheat:1},wall:{brick:2}};
 const LIMIT={settlement:5,city:4,road:15,ship:15};
+/* maps: the shape of the land, and whether there is sea to sail with islands and gold */
 const MODES={
-  base:{name:'Clásico',desc:'3–4 jugadores · isla de 19 losetas',min:2,max:4,target:10,bank:19},
-  grande:{name:'Gran isla',desc:'5–6 jugadores · 30 losetas, 11 puertos',min:3,max:6,target:10,bank:24,big:true},
-  mar:{name:'Navegantes',desc:'2–4 jugadores · barcos, islas y oro',min:2,max:4,target:13,bank:19,ships:true},
-  margrande:{name:'Navegantes 5–6',desc:'5–6 jugadores · isla grande, barcos y 6 islas',min:3,max:6,target:14,bank:24,ships:true,big:true}
+  base:{name:'Isla clásica',desc:'19 losetas · sin oro',target:10},
+  grande:{name:'Isla grande',desc:'30 losetas · 11 puertos · sin oro',target:10,big:true},
+  mar:{name:'Archipiélago',desc:'isla de 19 + 5 islas · con oro',target:13,sea:true,needShips:true},
+  margrande:{name:'Gran archipiélago',desc:'isla de 30 + 6 islas · con oro',target:14,big:true,sea:true,needShips:true}
 };
+/* rules = map + the mechanics switched on. Older games had no switches: their map implied them */
+function RULES(S){
+  const m=MODES[S.mode]||MODES.base;
+  const set=S.ext56!=null,big=set?!!S.ext56:!!m.big;
+  const ships=m.needShips?true:(S.ships!=null?!!S.ships:!!m.sea);
+  /* the special building phase only runs in games that chose the 5–6 rules; games from before keep playing as they started */
+  return{...m,ext56:set&&!!S.ext56,bigSupply:big,ships,min:2,max:big?6:4,bank:big?24:19};
+}
 const defaultTarget=S=>MODES[S.mode].target+(S.ck?3:0);
 const targetOf=S=>(S.cfg&&S.cfg.vp)||defaultTarget(S);
 const COLORS=[{c:'#d63a2a',n:'Rojo'},{c:'#2d68d1',n:'Azul'},{c:'#ec8a17',n:'Naranja'},{c:'#f4f1e8',n:'Blanco'},{c:'#2b9a55',n:'Verde'},{c:'#7b4f9e',n:'Morado'}];
@@ -675,14 +686,14 @@ function canSettle(S,B,v,pi,setup){
   const V=B.verts[v];
   if(!V||!V.land||S.build[v]||(S.knights&&S.knights[v]))return false;
   if(V.adj.some(a=>S.build[a]))return false;
-  if(setup)return !MODES[S.mode].ships||V.isl===0;
+  if(setup)return !RULES(S).ships||V.isl===0;
   return V.e.some(e=>S.lines[e]&&S.lines[e].p===pi);
 }
 function canLine(S,B,e,pi,kind,setupV){
   const E=B.edges[e];
   if(!E||S.lines[e])return false;
   if(kind==='road'&&!E.land)return false;
-  if(kind==='ship'&&(!MODES[S.mode].ships||!E.sea))return false;
+  if(kind==='ship'&&(!RULES(S).ships||!E.sea))return false;
   if(setupV!=null)return E.a===setupV||E.b===setupV;
   for(const v of[E.a,E.b]){
     const b=S.build[v];
@@ -772,7 +783,7 @@ function openRoads(S,B){
 }
 function newState(mode,me,name,ck,table,timer){
   const code=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random()*24)]).join('');
-  return{code,mode,ck:!!ck,table:!!table,timer:+timer||0,cfg:{vp:null,discard:7,friendly:false},deadline:null,paused:null,seed:Math.floor(Math.random()*2**31),gen:2,phase:'lobby',host:me,pids:table?[]:[me],players:table?[]:[{id:me,name,color:0}],build:{},lines:{},knights:{},log:[],v:1,created:Date.now()};
+  return{code,mode,ck:!!ck,table:!!table,timer:+timer||0,ext56:!!MODES[mode].big,ships:!!MODES[mode].sea,cfg:{vp:null,discard:7,friendly:false},deadline:null,paused:null,seed:Math.floor(Math.random()*2**31),gen:2,phase:'lobby',host:me,pids:table?[]:[me],players:table?[]:[{id:me,name,color:0}],build:{},lines:{},knights:{},log:[],v:1,created:Date.now()};
 }
 
 /* a progress card that would do nothing right now is not spent; this says why (or null if it can be played) */
@@ -799,7 +810,7 @@ function progBlock(S,B,pi,c){
       if(!ks.some(k=>!k.active))return'No puedes usar el Señor de la guerra: no tienes caballeros inactivos.';
       return null;
     case'roadb':
-      if(!B.edges.some((e,j)=>canLine(S,B,j,pi,'road',null)||(MODES[S.mode].ships&&canLine(S,B,j,pi,'ship',null))))return'No puedes usar Construcción de caminos: no hay dónde construir.';
+      if(!B.edges.some((e,j)=>canLine(S,B,j,pi,'road',null)||(RULES(S).ships&&canLine(S,B,j,pi,'ship',null))))return'No puedes usar Construcción de caminos: no hay dónde construir.';
       return null;
     case'irrigation':case'mining':{
       const type=c==='irrigation'?'wheat':'ore';
@@ -832,7 +843,7 @@ function act(S0,me,a,rand){
   rand=rand||Math.random;
   const S=JSON.parse(JSON.stringify(S0));
   S.knights=S.knights||{};
-  const B=board(S),M=MODES[S.mode],K=keysOf(S);
+  const B=board(S),M=RULES(S),K=keysOf(S);
   const err=m=>{throw new Error(m)};
   const log=t=>{S.log.push(t);if(S.log.length>40)S.log.shift()};
   const shuffle=arr=>{for(let i=arr.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}return arr};
@@ -847,7 +858,7 @@ function act(S0,me,a,rand){
   }
   if(pi<0&&!(['start','pause','addBot','removeBot','config','rematch','close'].includes(a.t)&&S.host===me)&&a.t!=='timeout')err('No estás en esta partida.');
   const keyBefore=turnKey(S0);
-  const P=S.players[pi],isCur=S.cur===pi,n=S.players.length;
+  const P=S.players[pi],isCur=(S.step==='special'?S.sbp:S.cur)===pi,n=S.players.length;
   const pay=c=>{if(!hasRes(P.res,c))err('No te alcanzan los recursos.');for(const[k,q]of Object.entries(c)){P.res[k]-=q;S.bank[k]+=q}};
   const needCur=()=>{if(!isCur)err('No es tu turno.')};
   const needStep=(...s)=>{if(!s.includes(S.step))err('Ahora no puedes hacer eso.')};
@@ -856,7 +867,7 @@ function act(S0,me,a,rand){
   const takeRandom=(from,to,q,keys)=>{let got=0;for(let i=0;i<q;i++){const pool=(keys||K).flatMap(k=>Array(from.res[k]).fill(k));if(!pool.length)break;const k=pool[Math.floor(rand()*pool.length)];from.res[k]--;if(to)to.res[k]++;else S.bank[k]++;got++}return got};
   const afterSettle=v=>{
     const V=B.verts[v];
-    if(MODES[S.mode].ships&&V.isl>0&&!(P.islands||[]).includes(V.isl)){P.islands=[...(P.islands||[]),V.isl];log(`${P.name} llegó a una isla nueva: +2 puntos`)}
+    if(M.ships&&V.isl>0&&!(P.islands||[]).includes(V.isl)){P.islands=[...(P.islands||[]),V.isl];log(`${P.name} llegó a una isla nueva: +2 puntos`)}
   };
   const mainOrRoll=()=>needStep('main');
   function drawProg(i,color){
@@ -975,12 +986,12 @@ function act(S0,me,a,rand){
       S.players.forEach(p=>{p.res=Object.fromEntries(K.map(k=>[k,0]));p.dev=[];p.newDev=[];p.knights=0;p.islands=[];
         if(S.ck){p.imp={trade:0,politics:0,science:0};p.prog=[];p.vpc=[]}});
       S.pids=S.players.map(p=>p.id);
-      S.bank=Object.fromEntries(K.map(k=>[k,COM.includes(k)?(M.big?16:12):M.bank]));
+      S.bank=Object.fromEntries(K.map(k=>[k,COM.includes(k)?(M.bigSupply?16:12):M.bank]));
       if(S.ck){
         S.deck=[];S.barb=0;S.attacked=false;S.metro={trade:null,politics:null,science:null};S.merchant=null;S.event=null;
         S.pdeck={};TRACKS.forEach(c=>S.pdeck[c]=shuffle(Object.entries(PROG).filter(([k,d])=>d.c===c).flatMap(([k,d])=>Array(d.n).fill(k))));
       }else{
-        S.deck=shuffle(tally(M.big?{knight:20,vp:5,road:3,plenty:3,mono:3}:{knight:14,vp:5,road:2,plenty:2,mono:2}));
+        S.deck=shuffle(tally(M.bigSupply?{knight:20,vp:5,road:3,plenty:3,mono:3}:{knight:14,vp:5,road:2,plenty:2,mono:2}));
       }
       S.knights={};S.nums={};
       S.robber=B.robber;S.longest=null;S.army=null;S.roadLen=S.players.map(()=>0);
@@ -1092,7 +1103,7 @@ function act(S0,me,a,rand){
       const k=a.kind;
       if(S.phase!=='play')err('Ahora no.');
       const free=(k==='road'||k==='ship')&&S.free>0;
-      if(free)needStep('main','roll');else needStep('main');
+      if(free)needStep('main','roll');else needStep('main','special');
       const c=countPieces(S,pi);
       if(c[k]>=LIMIT[k])err(`Ya usaste todas tus piezas de ${k==='city'?'ciudad':k==='settlement'?'poblado':k==='ship'?'barco':'camino'}.`);
       if(k==='road'||k==='ship'){
@@ -1111,7 +1122,7 @@ function act(S0,me,a,rand){
       recalcLongest(S,B,log);break;
     }
     case'buyDev':{
-      needCur();needStep('main');
+      needCur();needStep('main','special');
       if(S.ck)err('En Ciudades y caballeros no hay cartas de desarrollo.');
       if(!S.deck.length)err('Ya no quedan cartas de desarrollo.');
       pay(COST.dev);P.newDev.push(S.deck.pop());log(`${P.name} compró una carta de desarrollo`);break;
@@ -1147,7 +1158,7 @@ function act(S0,me,a,rand){
     }
     /* ---------- Cities & Knights ---------- */
     case'improve':{
-      needCK();needCur();needStep('main');
+      needCK();needCur();needStep('main','special');
       const tr=a.track;if(!TRACKS.includes(tr))err('?');
       if(!Object.values(S.build).some(b=>b.p===pi&&b.t==='city'))err('Necesitas al menos una ciudad para mejorar.');
       const lv=P.imp[tr];if(lv>=5)err('Ese camino ya está al máximo.');
@@ -1165,7 +1176,7 @@ function act(S0,me,a,rand){
       break;
     }
     case'knight':{
-      needCK();needCur();needStep('main');
+      needCK();needCur();needStep('main','special');
       const lvl=S.freeKnight||1,c=countPieces(S,pi);
       if(c['k'+lvl]>=2)err(`Ya tienes 2 caballeros ${KNAME[lvl]}s.`);
       if(!knightSpot(S,B,a.v,pi))err('El caballero va en una esquina libre junto a tus caminos.');
@@ -1174,13 +1185,13 @@ function act(S0,me,a,rand){
       recalcLongest(S,B,log);break;
     }
     case'activate':{
-      needCK();needCur();needStep('main');
+      needCK();needCur();needStep('main','special');
       const k=S.knights[a.v];if(!k||k.p!==pi)err('Ese caballero no es tuyo.');
       if(k.active)err('Ya está activo.');
       pay(COST.activate);k.active=true;k.actT=S.turnNo;log(`${P.name} activó un caballero`);break;
     }
     case'promote':{
-      needCK();needCur();needStep('main');
+      needCK();needCur();needStep('main','special');
       const k=S.knights[a.v];if(!k||k.p!==pi)err('Ese caballero no es tuyo.');
       if(k.lvl>=3)err('Ya es poderoso.');
       if(k.lvl===2&&P.imp.politics<3)err('Necesitas la Fortaleza (Política nivel 3) para caballeros poderosos.');
@@ -1206,7 +1217,7 @@ function act(S0,me,a,rand){
       S.knights[a.v].active=false;S.afterRobber='main';S.step='robber';log(`${P.name} ahuyenta al ladrón con un caballero`);break;
     }
     case'wall':{
-      needCK();needCur();needStep('main');
+      needCK();needCur();needStep('main','special');
       const b=S.build[a.v];if(!b||b.p!==pi||b.t!=='city')err('Las murallas van en tus ciudades.');
       if(b.wall)err('Esa ciudad ya tiene muralla.');
       if(countPieces(S,pi).wall>=3)err('Solo puedes tener 3 murallas.');
@@ -1362,12 +1373,14 @@ function act(S0,me,a,rand){
       if(a.friendly!==undefined)S.cfg.friendly=!!a.friendly;
       if(a.timer!==undefined)S.timer=[0,60,90,120].includes(+a.timer)?+a.timer:0;
       if(a.ck!==undefined)S.ck=!!a.ck;
+      if(a.ext56!==undefined){if(!a.ext56&&S.players.length>4)err('Hay más de 4 jugadores: quita a alguien primero.');S.ext56=!!a.ext56}
+      if(a.ships!==undefined){if(!a.ships&&MODES[S.mode].needShips)err('Este mapa necesita barcos.');S.ships=!!a.ships}
       break;
     }
     case'rematch':{
       if(S.phase!=='over')err('La partida no ha terminado.');
       if(S.host!==me)err('Solo quien abrió la partida puede pedir la revancha.');
-      const keep={gen:2,code:S.code,mode:S.mode,ck:S.ck,table:S.table,timer:S.timer,cfg:S.cfg,host:S.host,created:Date.now()};
+      const keep={gen:2,ext56:S.ext56,ships:S.ships,code:S.code,mode:S.mode,ck:S.ck,table:S.table,timer:S.timer,cfg:S.cfg,host:S.host,created:Date.now()};
       for(const k of Object.keys(S))delete S[k];
       Object.assign(S,keep,{deadline:null,paused:null,seed:Math.floor(rand()*2**31),phase:'lobby',players:S0.players.map(p=>{const x={id:p.id,name:p.name,color:p.color};if(p.bot)x.bot=p.bot;return x}),build:{},lines:{},knights:{},log:['¡Revancha! Mismos jugadores, isla nueva.']});
       S.pids=S.players.map(p=>p.id);break;
@@ -1375,7 +1388,18 @@ function act(S0,me,a,rand){
     case'end':{
       needCur();needStep('main');
       S.offer=null;S.offerN=0;P.dev.push(...P.newDev);P.newDev=[];S.devPlayed=false;S.free=0;S.tf={};S.fleet=null;S.freeKnight=0;
-      S.cur=(S.cur+1)%n;S.step='roll';S.turnNo++;log(`Turno de ${S.players[S.cur].name}`);break;
+      if(M.ext56&&n>1){
+        /* 5–6 rules: after each turn, everyone else in order may build (no trading, no cards) */
+        S.sbq=[];for(let j=2;j<n;j++)S.sbq.push((S.cur+j)%n);
+        S.sbp=(S.cur+1)%n;S.step='special';log(`Fase de construcción: ${S.players[S.sbp].name}`);
+      }else nextTurn();
+      break;
+    }
+    case'sbPass':{
+      if(S.step!=='special'||S.sbp!==pi)err('No es tu fase de construcción.');
+      if(S.sbq&&S.sbq.length){S.sbp=S.sbq.shift();log(`Fase de construcción: ${S.players[S.sbp].name}`)}
+      else{S.sbp=null;S.sbq=null;nextTurn()}
+      break;
     }
     case'close':{
       if(S.host!==me)err('Solo quien abrió la partida puede cerrarla.');
@@ -1395,6 +1419,7 @@ function act(S0,me,a,rand){
     }
     default:err('Acción desconocida.');
   }
+  function nextTurn(){S.cur=(S.cur+1)%n;S.step='roll';S.turnNo++;S.sbp=null;S.sbq=null;log(`Turno de ${S.players[S.cur].name}`)}
   function claimMetro(tr){
     const v=Object.keys(S.build).find(v=>{const b=S.build[v];return b.p===pi&&b.t==='city'&&!b.metro});
     if(v==null){log(`${P.name} necesita una ciudad libre para su metrópolis de ${TRACK_ES[tr]}`);return}
@@ -1418,7 +1443,7 @@ function act(S0,me,a,rand){
   S.v=(S.v||0)+1;S.at=Date.now();
   return S;
 }
-function turnKey(S){return S.phase==='setup'?'s'+S.si+':'+S.step:S.phase==='play'?'t'+S.turnNo+':'+S.cur:S.phase}
+function turnKey(S){return S.phase==='setup'?'s'+S.si+':'+S.step:S.phase==='play'?'t'+S.turnNo+':'+S.cur+(S.step==='special'?':b'+S.sbp:''):S.phase}
 /* when the clock runs out, the game makes the pending move for whoever is holding it up */
 function autoMove(S,rand){
   rand=rand||Math.random;
@@ -1432,6 +1457,7 @@ function autoMove(S,rand){
     return note(act(S,id(cur),{t:'setR',e:pick(B.edges.map((e,i)=>i).filter(i=>canLine(S,B,i,cur,'ship',S.lastV))),kind:'ship'},rand));
   }
   if(S.step==='roll')return note(act(S,id(cur),{t:'roll'},rand));
+  if(S.step==='special')return note(act(S,id(S.sbp),{t:'sbPass'},rand));
   if(S.step==='discard'){
     let N=S;
     for(const k of Object.keys(S.discards)){const P=N.players[k];let need=N.discards[k];const pool=K.flatMap(x=>Array(P.res[x]).fill(x));const res={};
@@ -1495,7 +1521,7 @@ function vScore(S,B,v,pi,prod){
     const w=resWeight(S,H.type)*(h===S.robber?.4:1);s+=p*w;
     if(prod&&!prod[H.type]&&!seen.has(H.type))s+=p*.45;seen.add(H.type)});
   if(V.port==='any')s+=1.2;else if(V.port&&prod&&prod[V.port]>=4)s+=2;else if(V.port)s+=.6;
-  if(MODES[S.mode].ships&&V.isl>0&&!(S.players[pi].islands||[]).includes(V.isl))s+=5;
+  if(RULES(S).ships&&V.isl>0&&!(S.players[pi].islands||[]).includes(V.isl))s+=5;
   return s;
 }
 function edgeValue(S,B,e,pi,prod){
@@ -1516,7 +1542,7 @@ function missing(res,cost){let m=0;for(const[k,q]of Object.entries(cost))m+=Math
 function needMap(res,cost){const n={};for(const[k,q]of Object.entries(cost))if((res[k]||0)<q)n[k]=q-(res[k]||0);return n}
 /* the bot's wish list for this turn, best first */
 function botGoals(S,B,pi){
-  const P=S.players[pi],M=MODES[S.mode],pcs=countPieces(S,pi),prod=botProfile(S,B,pi),out=[];
+  const P=S.players[pi],M=RULES(S),pcs=countPieces(S,pi),prod=botProfile(S,B,pi),out=[];
   const V=B.verts.map((x,i)=>i),E=B.edges.map((x,i)=>i);
   const mine=V.filter(v=>S.build[v]&&S.build[v].p===pi);
   if(pcs.city<4){const st=mine.filter(v=>S.build[v].t==='settlement');
@@ -1714,6 +1740,12 @@ function botNext(S,rand){
     return tryA(i,{t:'setR',e:pickBest(es,e=>edgeValue(S,B,e,i,prod),lv,rand),kind},700);
   }
   if(S.step==='discard'){for(const k of Object.keys(S.discards)){if(bot(+k)){const r=tryA(+k,{t:'discard',res:botDiscard(S,+k,S.discards[k],rand,lvOf(+k))},600);if(r)return r}}return null}
+  if(S.step==='special'){
+    const i=S.sbp;if(!bot(i))return null;const P=S.players[i],lv=lvOf(i);
+    const ok=['city','settlement','road','ship','knight','activate','promote','improve','wall','dev'];
+    const g=lv===BOT_LV.easy&&rand()<.5?null:botGoals(S,B,i).find(g=>ok.includes(g.k)&&hasRes(P.res,g.cost)&&g.val>=.9);
+    return(g&&tryA(i,g.a,700))||tryA(i,{t:'sbPass'},500);
+  }
   if(S.step==='sabotage'){for(const k of Object.keys(S.sab.owe)){if(bot(+k)){const r=tryA(+k,{t:'sabDrop',res:botDiscard(S,+k,S.sab.owe[k],rand,lvOf(+k))},900);if(r)return r}}return null}
   if(S.step==='harbor'){for(const k of Object.keys(S.harbor.owe)){if(bot(+k)){const P=S.players[k];const x=COM.filter(c=>P.res[c]).sort((a,b)=>P.res[b]-P.res[a])[0];const r=tryA(+k,{t:'harborGive',res:x},900);if(r)return r}}return null}
   if(S.step==='wedding'){for(const k of Object.keys(S.wedding.owe)){if(bot(+k)){const r=tryA(+k,{t:'give',res:botDiscard(S,+k,S.wedding.owe[k],rand,lvOf(+k))},900);if(r)return r}}return null}
@@ -1755,7 +1787,7 @@ const dispKeys=S=>S&&S.ck?PAIRS8:RES;
 const HEXFILL={wood:'#3d7a3a',brick:'#c06a3e',sheep:'#9cc25a',wheat:'#e7c04a',ore:'#8a939c',desert:'#dcc994',gold:'#5b4530'};
 const TCOL={trade:'#d9a520',politics:'#2f63c4',science:'#2f8f4a'};
 const U={wg:{},sd:{},ho:{},spyT:null,net:null,code:null,mode:null,sheet:null,dd:{},gd:{},pd:{},tg:{},tr:{},bg:null,bt:null,tab:'bank',newMode:'base',ck:false,table:false,timer:0,view:null,showBoard:false,name:'',kfrom:null,inv:[],pcard:null,alc:{w:3,r:3}};
-try{U.cb=localStorage.getItem('hx-cb')==='1';U.name=localStorage.getItem('hx-name')||'';U.ck=localStorage.getItem('hx-ck')==='1';U.table=localStorage.getItem('hx-table')==='1';U.timer=+(localStorage.getItem('hx-timer')||0)}catch(e){}
+try{U.ext56=localStorage.getItem('hx-ext56')==='1';U.ships=localStorage.getItem('hx-ships')==='1';const nm=localStorage.getItem('hx-map');if(nm&&MODES[nm])U.newMode=nm;U.cb=localStorage.getItem('hx-cb')==='1';U.name=localStorage.getItem('hx-name')||'';U.ck=localStorage.getItem('hx-ck')==='1';U.table=localStorage.getItem('hx-table')==='1';U.timer=+(localStorage.getItem('hx-timer')||0)}catch(e){}
 const VIEW_ES={screen:'Pantalla',control:'Control',player:'Completo'};
 function viewOf(){
   if(U.view)return U.view;
@@ -1770,7 +1802,9 @@ async function keepAwake(){try{if(navigator.wakeLock&&!wakeLock){wakeLock=await 
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(U.view==='screen'||G))keepAwake()});
 function toast(m){if(G&&G.phase!=='lobby')play('err');const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,3200)}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const modeName=S=>MODES[S.mode].name+(S.ck?' + Ciudades y caballeros':'');
+const modeName=S=>{const R=RULES(S);return R.name+(R.ext56?' · 5–6':'')+(R.ships&&!R.needShips?' · Navegantes':'')+(S.ck?' · Ciudades y caballeros':'')};
+/* who may act right now: in the special building phase it is the builder */
+const actorOf=S=>S.step==='special'?S.sbp:S.cur;
 const TIMERS=[[0,'Sin tiempo'],[60,'1 min'],[90,'1½ min'],[120,'2 min']];
 function setGameMode(on){document.body.classList.toggle('ingame',!!on)}
 
@@ -1977,7 +2011,7 @@ const MODE_ES={road:'¿Dónde va el camino?',ship:'¿Dónde va el barco?',settle
   intrigue:'¿Qué caballero rival desplazas?',merchant:'¿Dónde pones al mercader?'};
 function targets(){
   const S=G,B=board(S),pi=myIdx(),t={v:[],e:[],h:[],kind:null};
-  if(pi<0||S.cur!==pi||S.phase==='over')return t;
+  if(pi<0||actorOf(S)!==pi||S.phase==='over')return t;
   const V=B.verts.map((v,i)=>i),E=B.edges.map((e,i)=>i),H=B.hexes.map((h,i)=>i);
   if(S.phase==='setup'){
     if(S.step==='setS')t.v=V.filter(i=>canSettle(S,B,i,pi,true));
@@ -2006,7 +2040,7 @@ function targets(){
 function fitBox(S,B){
   const R3=Math.sqrt(3);let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
   const grow=(x,y,m)=>{x0=Math.min(x0,x-m);x1=Math.max(x1,x+m);y0=Math.min(y0,y-m);y1=Math.max(y1,y+m)};
-  if(MODES[S.mode].ships)B.hexes.forEach(h=>{x0=Math.min(x0,h.x-R3/2);x1=Math.max(x1,h.x+R3/2);y0=Math.min(y0,h.y-1);y1=Math.max(y1,h.y+1)});
+  if(MODES[S.mode].sea)B.hexes.forEach(h=>{x0=Math.min(x0,h.x-R3/2);x1=Math.max(x1,h.x+R3/2);y0=Math.min(y0,h.y-1);y1=Math.max(y1,h.y+1)});
   else{B.hexes.forEach(h=>{if(h.type!=='sea'){x0=Math.min(x0,h.x-R3/2);x1=Math.max(x1,h.x+R3/2);y0=Math.min(y0,h.y-1);y1=Math.max(y1,h.y+1)}});B.ports.forEach(p=>grow(p.x,p.y,.32))}
   const m=.12;return{x:(x0-m)*48,y:(y0-m)*48,w:(x1-x0+2*m)*48,h:(y1-y0+2*m)*48};
 }
@@ -2133,6 +2167,7 @@ function status(onScreen){
     return S.step==='setS'?{i:S.ck&&second?'city':'settlement',t:`Coloca tu ${what}${second?' · da recursos':''}`,me:true}:{i:'road',t:'Coloca un camino junto a él',me:true};
   }
   const st=S.step;
+  if(st==='special'){const b=S.players[S.sbp];return S.sbp===pi?{i:'settlement',t:'Fase de construcción: puedes construir',me:true}:{i:'settlement',t:`Fase de construcción · ${esc(b?.name||'')}`}}
   if(st==='sabotage'){const W=S.sab||{owe:{}},n=W.owe[pi];return n?{i:'cards',t:`Saboteador: descarta ${n} carta${n>1?'s':''}`,me:true}:{i:'cards',t:'Saboteador · esperando descartes'}}
   if(st==='harbor'){const W=S.harbor||{owe:{}},k=W.owe[pi],to=esc(S.players[W.to]?.name||'');return k?{i:'trade',t:`Puerto: elige qué mercancía das a ${to}`,me:true}:{i:'trade',t:`Puerto comercial de ${to} · esperando`}}
   if(st==='wedding'){const W=S.wedding||{owe:{}},n=W.owe[pi],to=esc(S.players[W.to]?.name||'');return n?{i:'cards',t:`Boda: regala ${n} carta${n>1?'s':''} a ${to}`,me:true}:{i:'cards',t:`Boda de ${to} · esperando regalos`}}
@@ -2174,13 +2209,25 @@ function dockBtn(id,icon,label,opt){
   return`<button class="db ${opt.cls||''} ${U.mode&&U.mode===opt.mode?'on':''}" ${id.startsWith('bm:')?`data-bm="${id.slice(3)}"`:`id="${id}"`} ${opt.dis?'disabled':''} aria-label="${label}">${ic(icon,26)}<span class="dl">${label}</span>${opt.cost?pips(opt.cost):''}${opt.badge?`<span class="badge2">${opt.badge}</span>`:''}</button>`;
 }
 function dockHtml(pi){
-  const S=G,P=S.players[pi],M=MODES[S.mode],mine=S.cur===pi&&S.phase==='play';
+  const S=G,P=S.players[pi],M=RULES(S),mine=S.cur===pi&&S.phase==='play',sb=S.step==='special'&&S.sbp===pi&&S.phase==='play';
   if(!P)return'';
   const can=k=>hasRes(P.res,COST[k]),pcs=countPieces(S,pi);
   const cardsN=S.ck?P.prog.length:(P.dev.length+P.newDev.length);
   const cardsBtn=dockBtn('cards','cards','Cartas',{badge:cardsN||'',dis:!cardsN&&!(S.ck&&P.vpc.length)});
   const impBtn=S.ck?dockBtn('impb','improve','Mejoras'):'';
   if(S.phase==='over')return`<nav class="dock few">${dockBtn('statsb','chart','Resultados',{cls:'pri'})}${S.host===ME?dockBtn('rematch','dice','Revancha'):''}${dockBtn('home','exit','Salir')}</nav>`;
+  if(sb){
+    const b=[
+      dockBtn('bm:road','road','Camino',{mode:'road',cost:COST.road,dis:!(can('road')&&pcs.road<15)}),
+      M.ships?dockBtn('bm:ship','ship','Barco',{mode:'ship',cost:COST.ship,dis:!(can('ship')&&pcs.ship<15)}):'',
+      dockBtn('bm:settlement','settlement','Poblado',{mode:'settlement',cost:COST.settlement,dis:!(can('settlement')&&pcs.settlement<5)}),
+      dockBtn('bm:city','city','Ciudad',{mode:'city',cost:COST.city,dis:!(can('city')&&pcs.city<4)}),
+      S.ck?dockBtn('kn','knight','Caballeros',{cls:['knight','activate','promote','wall'].includes(U.mode)?'on':''}):dockBtn('buy','dev','Desarrollo',{cost:COST.dev,dis:!(can('dev')&&S.deck.length)}),
+      impBtn,
+      dockBtn('sbdone','check','Listo, no construyo más',{cls:'wide pri'})
+    ];
+    return`<nav class="dock">${b.join('')}</nav>`;
+  }
   if(!mine||!['roll','main'].includes(S.step)){
     return`<nav class="dock few">${cardsBtn}${impBtn}${dockBtn('mesa','people','Mesa')}</nav>`;
   }
@@ -2222,7 +2269,7 @@ function renderScreen(){
   const S=G,st=status(true),pi=myIdx();
   const playersHtml=S.players.map((p,i)=>{
     const ks=Object.values(S.knights||{}).filter(k=>k.p===i),kact=ks.filter(k=>k.active).reduce((s,k)=>s+k.lvl,0);
-    return`<div class="pl ${S.cur===i&&S.phase!=='over'?'cur':''}"><span class="dot" style="background:${COLORS[p.color].c}"></span>
+    return`<div class="pl ${actorOf(S)===i&&S.phase!=='over'?'cur':''}"><span class="dot" style="background:${COLORS[p.color].c}"></span>
     <div class="pm"><div class="nm">${esc(p.name)}${p.bot?`<span class="tag bot">bot</span>`:''}${S.longest===i?`<span class="tag">${ic('road',12)} ruta</span>`:''}${S.army===i?`<span class="tag">${ic('knight',12)} ejército</span>`:''}</div>
     <div class="st"><span data-cc="${p.id}" class="${sumRes(p.res)>handLimit(S,i)?'warn':''}">${ic('cards',14)} ${sumRes(p.res)}</span>${S.ck?`<span>${ic('dev',14)} ${p.prog.length}</span><span title="Caballeros activos · fuerza">${ic('knight',14)} ${ks.filter(k=>k.active).length}${kact?`<small class="kstr">·${kact}</small>`:''}</span><span class="tr"><i style="background:${TCOL.trade}">${p.imp.trade}</i><i style="background:${TCOL.politics}">${p.imp.politics}</i><i style="background:${TCOL.science}">${p.imp.science}</i></span>`:`<span>${ic('dev',14)} ${(p.dev||[]).length+(p.newDev||[]).length}</span><span>${ic('knight',14)} ${p.knights}</span>`}<span>${ic('road',14)} ${S.roadLen?.[i]||0}</span></div></div>
     ${emoFor(i)}<div class="vp">${vpOf(S,i,S.phase==='over')}</div></div>`}).join('');
@@ -2298,6 +2345,7 @@ function renderGame(){
   on('cmode',()=>{U.mode=null;U.kfrom=null;U.inv=[];U.pcard=null;renderGame()});
   on('roll',()=>send({t:'roll'}));
   on('end',()=>send({t:'end'}));
+  on('sbdone',()=>send({t:'sbPass'}));
   on('buy',()=>send({t:'buyDev'}));
   on('home',closeGame);
   on('cards',()=>{U.sheet='cards';renderSheet()});
@@ -2358,7 +2406,7 @@ function renderSheet(){
   const box=$('#sheet');if(!G||G.phase==='lobby'){box.innerHTML='';return}
   const slot=document.getElementById('dockslot'),wrap=document.getElementById('sheetwrap');
   const shut=()=>{box.innerHTML='';if(wrap)wrap.innerHTML='';if(slot)slot.classList.remove('sheeton');document.querySelector('.g')?.classList.remove('sheeton')};
-  const S=G,B=board(S),pi=myIdx(),P=S.players[pi],K=dispKeys(S),mine=S.cur===pi&&S.phase==='play';
+  const S=G,B=board(S),pi=myIdx(),P=S.players[pi],K=dispKeys(S),mine=actorOf(S)===pi&&S.phase==='play';
   let h='',kind=null;
   const screenish=viewOf()==='screen'||pi<0;
   if(!screenish&&P&&S.step==='discard'&&S.discards?.[pi])kind='discard';
@@ -2372,7 +2420,7 @@ function renderSheet(){
   else if(P&&!screenish&&['cards','imp','emo'].includes(U.sheet))kind=U.sheet;
   else if(P&&!screenish&&U.sheet==='counter'&&S.offer&&S.offer.from!==pi)kind='counter';
   else if(U.sheet==='prog'&&U.pcard==='alchemist'){shut();return}
-  else if(P&&!screenish&&U.sheet&&mine&&S.step==='main')kind=U.sheet;
+  else if(P&&!screenish&&U.sheet&&mine&&(S.step==='main'||(S.step==='special'&&U.sheet==='knights')))kind=U.sheet;
   else U.sheet=null;
   if(!kind){shut();return}
   const title=(i,t,x)=>`<div class="sh">${ic(i,22)}<h3>${t}</h3>${x===false?'':`<button class="iconb" id="x" aria-label="Cerrar">${ic('close',20)}</button>`}</div>`;
@@ -2440,7 +2488,7 @@ function renderSheet(){
     const hasCity=Object.values(S.build).some(b=>b.p===pi&&b.t==='city');
     h=title('improve','Mejoras de ciudad')+`<div class="imps">${TRACKS.map(tr=>{
       const lv=P.imp[tr],cost=Math.max(0,lv+1-(S.tf?.crane?1:0)),com=TRACK_COM[tr],holder=S.metro[tr];
-      const ok=mine&&S.step==='main'&&hasCity&&lv<5&&P.res[com]>=cost;
+      const ok=mine&&(S.step==='main'||S.step==='special')&&hasCity&&lv<5&&P.res[com]>=cost;
       return`<div class="imp" style="--tc:${TCOL[tr]}"><div class="it"><b>${TRACK_ES[tr]}</b><span class="lvl">${[1,2,3,4,5].map(i=>`<i class="${i<=lv?'f':''} ${i===3?'m3':''} ${i===4?'m4':''}"></i>`).join('')}</span>
       <small>${lv>=3?TRACK_L3[tr].split(':')[0]+' ✓':'3: '+TRACK_L3[tr].split(':')[0]} · 4: metrópolis${holder!=null?' ('+esc(S.players[holder].name)+')':''}</small></div>
       ${lv<5?`<button class="up" data-imp="${tr}" ${ok?'':'disabled'}>${ic('promote',18)}${pips({[com]:cost})}</button>`:'<span class="max">máx</span>'}</div>`}).join('')}</div>
@@ -2552,7 +2600,7 @@ window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setT
 
 /* ---------- bots: the host device plays them ---------- */
 function lobbyPlayers(){
-  const isHost=G.host===ME,M=MODES[G.mode],full=G.players.length>=M.max;
+  const isHost=G.host===ME,M=RULES(G),full=G.players.length>=M.max;
   const rows=G.players.map(p=>`<div class="pl"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="nm">${esc(p.name)}${p.bot?` <span class="tag bot">bot · ${BOT_LV[p.bot].es}</span>`:''}${p.id===G.host?' <span class="badge">anfitrión</span>':''}${p.id===ME?' <span class="muted small">(tú)</span>':''}</span>${p.bot&&isHost?`<button class="sm" data-rmbot="${p.id}" aria-label="Quitar ${esc(p.name)}">${ic('close',14)}</button>`:`<span class="small muted">${COLORS[p.color].n}</span>`}</div>`).join('');
   const add=isHost?`<div class="addbot"><span class="lbl">Agregar bot</span><div class="tabs">${Object.entries(BOT_LV).map(([k,l])=>`<button data-addbot="${k}" ${full?'disabled':''}>${ic('people',16)} ${l.es}</button>`).join('')}</div>${full?'<span class="small muted">La mesa está llena.</span>':''}</div>`:'';
   return`<div class="players">${rows||'<p class="muted" style="margin:0">Todavía no entra nadie.</p>'}</div>${add}`;
@@ -2671,11 +2719,13 @@ function statsHtml(big){
 function lobbySettings(){
   const S=G,host=S.host===ME,c=S.cfg||{},vp=targetOf(S);
   const tl=(TIMERS.find(([v])=>v===S.timer)||TIMERS[0])[1];
-  if(!host)return`<div class="lset"><span class="lbl">Ajustes</span><p class="desc">Gana con ${vp} · descartan con más de ${c.discard||7} · ${c.friendly?'ladrón amistoso':'ladrón normal'} · ${tl.toLowerCase()}${S.ck?' · Ciudades y caballeros':''}</p></div>`;
+  if(!host)return`<div class="lset"><span class="lbl">Ajustes</span><p class="desc">${esc(modeName(S))} · gana con ${vp} · descartan con más de ${c.discard||7} · ${c.friendly?'ladrón amistoso':'ladrón normal'} · ${tl.toLowerCase()}</p></div>`;
   return`<div class="lset"><span class="lbl">Ajustes de la partida</span>
     <div class="lrow"><span>Puntos para ganar</span><span class="num"><button data-cfg="vp:-1" aria-label="menos">−</button><b>${vp}</b><button data-cfg="vp:1" aria-label="más">+</button></span></div>
     <div class="lrow"><span>Descartan con más de</span><span class="num"><button data-cfg="discard:-1" aria-label="menos">−</button><b>${c.discard||7}</b><button data-cfg="discard:1" aria-label="más">+</button></span></div>
     <div class="lrow"><span>Ladrón amistoso<br><small class="muted" style="font-weight:600">no bloquea a quien tiene 2 puntos o menos</small></span><button class="sw ${c.friendly?'on':''}" data-cfg="friendly" aria-label="Ladrón amistoso"><i></i></button></div>
+    <div class="lrow"><span>5–6 jugadores<br><small class="muted" style="font-weight:600">hasta 6 y fase de construcción entre turnos</small></span><button class="sw ${RULES(S).ext56?'on':''}" data-cfg="ext56" aria-label="5–6 jugadores"><i></i></button></div>
+    <div class="lrow"><span>Navegantes<br><small class="muted" style="font-weight:600">${MODES[S.mode].needShips?'este mapa los necesita':'barcos e islas nuevas'}</small></span><button class="sw ${RULES(S).ships?'on':''}" data-cfg="ships" aria-label="Navegantes" ${MODES[S.mode].needShips?'disabled':''}><i></i></button></div>
     <div class="lrow"><span>Ciudades y caballeros</span><button class="sw ${S.ck?'on':''}" data-cfg="ck" aria-label="Ciudades y caballeros"><i></i></button></div>
     <div class="lrow"><span>Tiempo por turno</span><div class="tabs">${TIMERS.map(([v,l])=>`<button data-cfgt="${v}" class="${S.timer===v?'on':''}">${l}</button>`).join('')}</div></div>
   </div>`;
@@ -2685,7 +2735,9 @@ function bindLobbySettings(){
     if(k==='vp')send({t:'config',vp:targetOf(G)+(+d)});
     else if(k==='discard')send({t:'config',discard:(c.discard||7)+(+d)});
     else if(k==='friendly')send({t:'config',friendly:!c.friendly});
-    else if(k==='ck')send({t:'config',ck:!G.ck})});
+    else if(k==='ck')send({t:'config',ck:!G.ck});
+    else if(k==='ext56')send({t:'config',ext56:!RULES(G).ext56});
+    else if(k==='ships')send({t:'config',ships:!RULES(G).ships})});
   document.querySelectorAll('[data-cfgt]').forEach(b=>b.onclick=()=>send({t:'config',timer:+b.dataset.cfgt}));
 }
 
@@ -2791,19 +2843,19 @@ function playersStrip(pi){
     const kAll=Object.values(S.knights||{}).filter(k=>k.p===i),kOn=kAll.filter(k=>k.active),kStr=kOn.reduce((t,k)=>t+k.lvl,0);
     const kn=S.ck?`<span class="pc kn ${kOn.length?'on':''}" aria-label="${kOn.length} caballero${kOn.length===1?'':'s'} activo${kOn.length===1?'':'s'} de ${kAll.length}, fuerza ${kStr}" title="Caballeros activos ${kOn.length} de ${kAll.length} · fuerza ${kStr}">${ic('knight',11)}${kOn.length}</span>`
       :`<span class="pc kn ${p.knights?'on':''}" aria-label="${p.knights||0} caballeros jugados" title="Caballeros jugados">${ic('knight',11)}${p.knights||0}</span>`;
-    return`<div class="pchip ${S.cur===i&&S.phase!=='over'?'cur':''} ${i===pi?'me':''}" style="--pc:${COLORS[p.color].c}" role="listitem" title="${esc(p.name)}">
+    return`<div class="pchip ${actorOf(S)===i&&S.phase!=='over'?'cur':''} ${i===pi?'me':''}" style="--pc:${COLORS[p.color].c}" role="listitem" title="${esc(p.name)}">
       <span class="pl1"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="pn">${esc(p.name)}</span><b class="pv" aria-label="puntos">${vpOf(S,i,i===pi||S.phase==='over')}</b></span>
       <span class="pl2"><span class="pc ${danger?'danger':''}" data-cc="${p.id}" aria-label="${n} cartas${danger?', en peligro con el ladrón':''}">${ic('cards',13)}${n}</span><span class="pc" aria-label="${dev} cartas de ${S.ck?'progreso':'desarrollo'}">${ic('dev',13)}${dev}</span>${kn}</span></div>`}).join('')}</div>`;
 }
 
 /* ---------- build by tapping the map ---------- */
 function freeMode(){
-  const S=G;if(!S||S.phase!=='play'||S.step!=='main'||U.mode||viewOf()==='screen')return false;
-  const pi=myIdx();return pi>=0&&S.cur===pi;
+  const S=G;if(!S||S.phase!=='play'||!['main','special'].includes(S.step)||U.mode||viewOf()==='screen')return false;
+  const pi=myIdx();return pi>=0&&actorOf(S)===pi;
 }
 /* what can be done at each spot of the map, with its cost and whether it can be paid now */
 function mapOpts(){
-  const S=G,B=board(S),pi=myIdx(),P=S.players[pi],pcs=countPieces(S,pi),M=MODES[S.mode],out={v:{},e:{}};
+  const S=G,B=board(S),pi=myIdx(),P=S.players[pi],pcs=countPieces(S,pi),M=RULES(S),out={v:{},e:{}},sp=S.step==='special';
   const can=c=>hasRes(P.res,c),add=(t,id,o)=>{(t[id]=t[id]||[]).push(o)};
   B.verts.forEach((V,v)=>{
     if(canSettle(S,B,v,pi,false))add(out.v,v,{k:'settlement',icon:'settlement',l:'Poblado',cost:COST.settlement,ok:can(COST.settlement)&&pcs.settlement<5,a:{t:'build',kind:'settlement',v}});
@@ -2815,11 +2867,11 @@ function mapOpts(){
     if(k&&k.p===pi){
       if(!k.active)add(out.v,v,{k:'activate',icon:'activate',l:'Activar',cost:COST.activate,ok:can(COST.activate),a:{t:'activate',v}});
       if(k.lvl<3&&k.proT!==S.turnNo){const c=S.tf&&S.tf.smith?{}:COST.promote,okLvl=!(k.lvl===2&&P.imp.politics<3)&&pcs['k'+(k.lvl+1)]<2;add(out.v,v,{k:'promote',icon:'promote',l:`Promover a ${KNAME[k.lvl+1]}`,cost:c,ok:okLvl&&(S.tf&&S.tf.smith||can(COST.promote)),a:{t:'promote',v}})}
-      if(knightCanAct(S,v,pi)&&knightMoves(S,B,v,pi).length)add(out.v,v,{k:'kmove',icon:'move',l:'Mover',cost:{},ok:true,a:{mode:'kmove',v}});
-      if(knightCanAct(S,v,pi)&&S.attacked&&B.hexes[S.robber].v.includes(v))add(out.v,v,{k:'kchase',icon:'chase',l:'Ahuyentar ladrón',cost:{},ok:true,a:{t:'kchase',v}});
+      if(!sp&&knightCanAct(S,v,pi)&&knightMoves(S,B,v,pi).length)add(out.v,v,{k:'kmove',icon:'move',l:'Mover',cost:{},ok:true,a:{mode:'kmove',v}});
+      if(!sp&&knightCanAct(S,v,pi)&&S.attacked&&B.hexes[S.robber].v.includes(v))add(out.v,v,{k:'kchase',icon:'chase',l:'Ahuyentar ladrón',cost:{},ok:true,a:{t:'kchase',v}});
     }
   });
-  const free=S.free>0;
+  const free=S.free>0&&!sp;
   B.edges.forEach((E,e)=>{
     if(canLine(S,B,e,pi,'road',null))add(out.e,e,{k:'road',icon:'road',l:free?'Camino gratis':'Camino',cost:free?{}:COST.road,ok:(free||can(COST.road))&&pcs.road<15,a:{t:'build',kind:'road',e}});
     if(M.ships&&canLine(S,B,e,pi,'ship',null))add(out.e,e,{k:'ship',icon:'ship',l:free?'Barco gratis':'Barco',cost:free?{}:COST.ship,ok:(free||can(COST.ship))&&pcs.ship<15,a:{t:'build',kind:'ship',e}});
@@ -2931,11 +2983,32 @@ function winExplain(i,compact){
     <div class="wl">${L.map(([icn,t,p])=>`<div class="wi">${ic(icn,15)}<span>${esc(t)}</span><b>+${p}</b></div>`).join('')}</div></div>`;
 }
 
+/* ---------- new game: map first, then the rules ---------- */
+function newGameHtml(){
+  const m=MODES[U.newMode],shipsOn=m.needShips||U.ships;
+  const sw=(id,on,title,desc,dis)=>`<button class="toggle ${on?'sel':''}" data-rule="${id}" ${dis?'disabled':''}><span class="box">${on?'✓':''}</span><div><b>${title}</b><br><span>${desc}</span></div></button>`;
+  return`<div class="lbl">Mapa</div>
+    <div class="modes">${Object.entries(MODES).map(([k,x])=>`<button class="mode ${U.newMode===k?'sel':''}" data-mode="${k}"><b>${x.name}</b><span>${x.desc}</span></button>`).join('')}</div>
+    <div class="lbl">Reglas</div>
+    <div class="rules">
+      ${sw('ext56',U.ext56,'5–6 jugadores','Hasta 6 jugadores y fase de construcción entre turnos: después de cada turno, los demás pueden construir.')}
+      ${sw('ships',shipsOn,'Navegantes',m.needShips?'Este mapa tiene islas: los barcos van incluidos. Cada isla nueva da 2 puntos.':'Barcos por la costa y el mar. Cada isla nueva da 2 puntos.',m.needShips)}
+      ${sw('ck',U.ck,'Ciudades y caballeros','Mercancías, mejoras de ciudad, metrópolis, caballeros contra los bárbaros y cartas de progreso. Se juega a 3 puntos más.')}
+    </div>`;
+}
+function bindNewGame(rerender){
+  const save=(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}};
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{U.newMode=b.dataset.mode;save('hx-map',U.newMode);rerender()});
+  document.querySelectorAll('[data-rule]').forEach(b=>b.onclick=()=>{const k=b.dataset.rule;U[k]=!U[k];save('hx-'+k,U[k]?'1':'0');rerender()});
+}
+function newGameTarget(){return MODES[U.newMode].target+(U.ck?3:0)}
+function applyNewGameRules(S){S.ext56=!!U.ext56;S.ships=MODES[U.newMode].needShips?true:!!U.ships;return S}
+
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
 function resetLocal(a){if(a.t!=='join'){U.mode=null;U.kfrom=null;U.inv=[];U.pcard=null}}
 async function send(a){
   if(!G)return;
-  if(isHost){const e=hostApply(ME,a);if(e)toast(e);else resetLocal(a);return}
+  if(isHost){const keep={mode:U.mode,kfrom:U.kfrom,inv:U.inv,pcard:U.pcard};resetLocal(a);const e=hostApply(ME,a);if(e){Object.assign(U,keep);toast(e);render()}return}
   if(!hostConn||!hostConn.open){toast('Sin conexión con la pantalla. Reconectando…');return}
   if(busy)return;busy=true;clearTimeout(pendingT);pendingT=setTimeout(()=>{busy=false},6000);
   hostConn.send({type:'act',a,pid:ME});resetLocal(a);
@@ -2997,7 +3070,7 @@ function retry(){clearTimeout(retry.t);retry.t=setTimeout(()=>{if(U.code&&!isHos
 function closeNet(){clearTimeout(retry.t);try{if(hostConn)hostConn.close()}catch(e){}hostConn=null;conns.forEach(c=>{try{c.close()}catch(e){}});conns=[];try{if(peer)peer.destroy()}catch(e){}peer=null;isHost=false}
 function createGame(){
   const name=U.name.trim();if(!name&&!U.table){toast('Escribe tu nombre primero.');return}
-  let S=newState(U.newMode,ME,name,U.ck,U.table,U.timer);
+  let S=applyNewGameRules(newState(U.newMode,ME,name,U.ck,U.table,U.timer));
   S.code=Array.from({length:5},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random()*24)]).join('');
   S.log.push(U.table?'Se abrió la mesa. Entren desde sus teléfonos con el código o el QR.':`${name} creó la partida`);
   if(U.table){U.view='screen';try{localStorage.setItem('hx-view-'+S.code,'screen')}catch(e){}}
@@ -3049,8 +3122,7 @@ function renderHome(){
     </section>
     <section class="card">
       <div class="lbl">Abrir una partida nueva</div>
-      <div class="modes">${Object.entries(MODES).map(([k,m])=>`<button class="mode ${U.newMode===k?'sel':''}" data-mode="${k}"><b>${m.name}</b><span>${m.desc}</span></button>`).join('')}</div>
-      <button class="toggle ${U.ck?'sel':''}" id="ck"><span class="box">${U.ck?'✓':''}</span><div><b>Ciudades y caballeros</b><br><span>Mercancías, mejoras, metrópolis, caballeros contra los bárbaros y cartas de progreso. Se juega a 3 puntos más.</span></div></button>
+      ${newGameHtml()}
       <button class="toggle ${U.table?'sel':''}" id="tb"><span class="box">${U.table?'✓':''}</span><div><b>Modo mesa</b><br><span>Este dispositivo (tele, tablet o laptop) será la pantalla con el tablero y no juega. Cada jugador entra desde su teléfono.</span></div></button>
       <div class="lbl">Tiempo por turno</div><div class="tabs" id="tmr">${TIMERS.map(([v,l])=>`<button data-tm="${v}" class="${U.timer===v?'on':''}">${l}</button>`).join('')}</div>
       <p class="small muted" style="margin:0" id="tgt"></p>
@@ -3059,10 +3131,8 @@ function renderHome(){
     </section>
   </div>
   <p class="small muted" style="max-width:70ch">El dispositivo que abre la partida la guarda: déjalo encendido y con esta página abierta. Los demás se conectan a él por internet; funciona mejor si están en el mismo Wi-Fi.</p>`;
-  const tgt=()=>{$('#tgt').textContent=`Se gana con ${MODES[U.newMode].target+(U.ck?3:0)} puntos.`};tgt();
+  const tgt=()=>{$('#tgt').textContent=`Se gana con ${newGameTarget()} puntos.`};tgt();bindNewGame(renderHome);
   $('#nm').oninput=e=>{U.name=e.target.value;try{localStorage.setItem('hx-name',U.name)}catch(_){}};
-  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{U.newMode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('sel',x===b));tgt()});
-  $('#ck').onclick=()=>{U.ck=!U.ck;try{localStorage.setItem('hx-ck',U.ck?'1':'0')}catch(_){}renderHome()};
   $('#tb').onclick=()=>{U.table=!U.table;try{localStorage.setItem('hx-table',U.table?'1':'0')}catch(_){}renderHome()};
   document.querySelectorAll('[data-tm]').forEach(b=>b.onclick=()=>{U.timer=+b.dataset.tm;try{localStorage.setItem('hx-timer',String(U.timer))}catch(_){}document.querySelectorAll('[data-tm]').forEach(x=>x.classList.toggle('on',x===b))});
   $('#create').onclick=createGame;
@@ -3079,7 +3149,7 @@ function renderHome(){
 /* ---------- lobby ---------- */
 function renderLobby(){
   setGameMode(false);$('#sheet').innerHTML='';
-  const M=MODES[G.mode],isHost=G.host===ME,inG=G.pids.includes(ME);
+  const M=RULES(G),isHost=G.host===ME,inG=G.pids.includes(ME);
   if(viewOf()==='screen'){
     $('#app').innerHTML=`
     <div class="top"><div class="row"><button id="back">← Salir</button><h2>Hexterra · mesa</h2>${fsBtn()}${netPill()}</div><span class="muted small">${esc(modeName(G))} · gana con ${targetOf(G)}</span></div>
