@@ -491,6 +491,7 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
 .modes{grid-template-columns:repeat(2,minmax(0,1fr))}
 .rules{display:flex;flex-direction:column;gap:8px}
 .toggle:disabled{opacity:.75;cursor:default}
+.sbq{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:5px;background:var(--hl);color:#2a1d00;flex:none}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -1388,11 +1389,21 @@ function act(S0,me,a,rand){
     case'end':{
       needCur();needStep('main');
       S.offer=null;S.offerN=0;P.dev.push(...P.newDev);P.newDev=[];S.devPlayed=false;S.free=0;S.tf={};S.fleet=null;S.freeKnight=0;
-      if(M.ext56&&n>1){
-        /* 5–6 rules: after each turn, everyone else in order may build (no trading, no cards) */
-        S.sbq=[];for(let j=2;j<n;j++)S.sbq.push((S.cur+j)%n);
-        S.sbp=(S.cur+1)%n;S.step='special';log(`Fase de construcción: ${S.players[S.sbp].name}`);
+      const req=M.ext56?(S.sbReq||[]):[];
+      if(req.length){
+        /* 5–6 rules: only the players who asked get to build, in turn order (no trading, no cards) */
+        const q=[];for(let j=1;j<n;j++){const x=(S.cur+j)%n;if(req.includes(x))q.push(x)}
+        S.sbReq=[];S.sbp=q.shift();S.sbq=q;S.step='special';log(`Fase de construcción: ${S.players[S.sbp].name}`);
       }else nextTurn();
+      break;
+    }
+    case'sbRequest':{
+      if(!M.ext56)err('Esta partida no tiene fase de construcción.');
+      if(S.phase!=='play'||S.step==='special')err('Ahora no.');
+      if(S.cur===pi)err('Es tu turno: construye normalmente.');
+      S.sbReq=S.sbReq||[];
+      if(S.sbReq.includes(pi)){S.sbReq=S.sbReq.filter(x=>x!==pi);log(`${P.name} ya no pide construir`)}
+      else{S.sbReq.push(pi);log(`${P.name} pide fase de construcción`)}
       break;
     }
     case'sbPass':{
@@ -1419,7 +1430,7 @@ function act(S0,me,a,rand){
     }
     default:err('Acción desconocida.');
   }
-  function nextTurn(){S.cur=(S.cur+1)%n;S.step='roll';S.turnNo++;S.sbp=null;S.sbq=null;log(`Turno de ${S.players[S.cur].name}`)}
+  function nextTurn(){S.cur=(S.cur+1)%n;S.step='roll';S.turnNo++;S.sbp=null;S.sbq=null;S.sbReq=[];log(`Turno de ${S.players[S.cur].name}`)}
   function claimMetro(tr){
     const v=Object.keys(S.build).find(v=>{const b=S.build[v];return b.p===pi&&b.t==='city'&&!b.metro});
     if(v==null){log(`${P.name} necesita una ciudad libre para su metrópolis de ${TRACK_ES[tr]}`);return}
@@ -1740,6 +1751,15 @@ function botNext(S,rand){
     return tryA(i,{t:'setR',e:pickBest(es,e=>edgeValue(S,B,e,i,prod),lv,rand),kind},700);
   }
   if(S.step==='discard'){for(const k of Object.keys(S.discards)){if(bot(+k)){const r=tryA(+k,{t:'discard',res:botDiscard(S,+k,S.discards[k],rand,lvOf(+k))},600);if(r)return r}}return null}
+  /* 5–6 rules: a bot asks for the building phase only when it can already pay for something worth building */
+  if(RULES(S).ext56&&S.phase==='play'&&S.step==='main'){
+    const ok=['city','settlement','road','ship','knight','improve','dev'];
+    for(let i=0;i<S.players.length;i++){
+      if(!bot(i)||i===S.cur||(S.sbReq||[]).includes(i))continue;
+      const P=S.players[i],g=botGoals(S,B,i).find(g=>ok.includes(g.k)&&hasRes(P.res,g.cost)&&g.val>=1);
+      if(g){const r=tryA(i,{t:'sbRequest'},1200);if(r)return r}
+    }
+  }
   if(S.step==='special'){
     const i=S.sbp;if(!bot(i))return null;const P=S.players[i],lv=lvOf(i);
     const ok=['city','settlement','road','ship','knight','activate','promote','improve','wall','dev'];
@@ -2229,7 +2249,9 @@ function dockHtml(pi){
     return`<nav class="dock">${b.join('')}</nav>`;
   }
   if(!mine||!['roll','main'].includes(S.step)){
-    return`<nav class="dock few">${cardsBtn}${impBtn}${dockBtn('mesa','people','Mesa')}</nav>`;
+    const asked=(S.sbReq||[]).includes(pi);
+    const sbBtn=M.ext56&&S.phase==='play'&&S.step!=='special'&&S.cur!==pi?dockBtn('sbreq',asked?'check':'settlement',asked?'Pedida: construir al final':'Pedir construcción',{cls:asked?'on':''}):'';
+    return`<nav class="dock few">${sbBtn}${cardsBtn}${impBtn}${dockBtn('mesa','people','Mesa')}</nav>`;
   }
   if(S.step==='roll'){
     return`<nav class="dock">${cardsBtn}${impBtn}${dockBtn('mesa','people','Mesa')}${S.free?dockBtn('bm:road','road','Camino',{mode:'road'}):''}${dockBtn('roll','dice','Tirar dados',{cls:'wide pri big'})}</nav>`;
@@ -2270,7 +2292,7 @@ function renderScreen(){
   const playersHtml=S.players.map((p,i)=>{
     const ks=Object.values(S.knights||{}).filter(k=>k.p===i),kact=ks.filter(k=>k.active).reduce((s,k)=>s+k.lvl,0);
     return`<div class="pl ${actorOf(S)===i&&S.phase!=='over'?'cur':''}"><span class="dot" style="background:${COLORS[p.color].c}"></span>
-    <div class="pm"><div class="nm">${esc(p.name)}${p.bot?`<span class="tag bot">bot</span>`:''}${S.longest===i?`<span class="tag">${ic('road',12)} ruta</span>`:''}${S.army===i?`<span class="tag">${ic('knight',12)} ejército</span>`:''}</div>
+    <div class="pm"><div class="nm">${esc(p.name)}${p.bot?`<span class="tag bot">bot</span>`:''}${(S.sbReq||[]).includes(i)?`<span class="tag">${ic('settlement',12)} construir</span>`:''}${S.longest===i?`<span class="tag">${ic('road',12)} ruta</span>`:''}${S.army===i?`<span class="tag">${ic('knight',12)} ejército</span>`:''}</div>
     <div class="st"><span data-cc="${p.id}" class="${sumRes(p.res)>handLimit(S,i)?'warn':''}">${ic('cards',14)} ${sumRes(p.res)}</span>${S.ck?`<span>${ic('dev',14)} ${p.prog.length}</span><span title="Caballeros activos · fuerza">${ic('knight',14)} ${ks.filter(k=>k.active).length}${kact?`<small class="kstr">·${kact}</small>`:''}</span><span class="tr"><i style="background:${TCOL.trade}">${p.imp.trade}</i><i style="background:${TCOL.politics}">${p.imp.politics}</i><i style="background:${TCOL.science}">${p.imp.science}</i></span>`:`<span>${ic('dev',14)} ${(p.dev||[]).length+(p.newDev||[]).length}</span><span>${ic('knight',14)} ${p.knights}</span>`}<span>${ic('road',14)} ${S.roadLen?.[i]||0}</span></div></div>
     ${emoFor(i)}<div class="vp">${vpOf(S,i,S.phase==='over')}</div></div>`}).join('');
   const o=S.offer;
@@ -2346,6 +2368,7 @@ function renderGame(){
   on('roll',()=>send({t:'roll'}));
   on('end',()=>send({t:'end'}));
   on('sbdone',()=>send({t:'sbPass'}));
+  on('sbreq',()=>send({t:'sbRequest'}));
   on('buy',()=>send({t:'buyDev'}));
   on('home',closeGame);
   on('cards',()=>{U.sheet='cards';renderSheet()});
@@ -2844,7 +2867,7 @@ function playersStrip(pi){
     const kn=S.ck?`<span class="pc kn ${kOn.length?'on':''}" aria-label="${kOn.length} caballero${kOn.length===1?'':'s'} activo${kOn.length===1?'':'s'} de ${kAll.length}, fuerza ${kStr}" title="Caballeros activos ${kOn.length} de ${kAll.length} · fuerza ${kStr}">${ic('knight',11)}${kOn.length}</span>`
       :`<span class="pc kn ${p.knights?'on':''}" aria-label="${p.knights||0} caballeros jugados" title="Caballeros jugados">${ic('knight',11)}${p.knights||0}</span>`;
     return`<div class="pchip ${actorOf(S)===i&&S.phase!=='over'?'cur':''} ${i===pi?'me':''}" style="--pc:${COLORS[p.color].c}" role="listitem" title="${esc(p.name)}">
-      <span class="pl1"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="pn">${esc(p.name)}</span><b class="pv" aria-label="puntos">${vpOf(S,i,i===pi||S.phase==='over')}</b></span>
+      <span class="pl1"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="pn">${esc(p.name)}</span>${(S.sbReq||[]).includes(i)?`<span class="sbq" title="Pidió fase de construcción">${ic('settlement',11)}</span>`:''}<b class="pv" aria-label="puntos">${vpOf(S,i,i===pi||S.phase==='over')}</b></span>
       <span class="pl2"><span class="pc ${danger?'danger':''}" data-cc="${p.id}" aria-label="${n} cartas${danger?', en peligro con el ladrón':''}">${ic('cards',13)}${n}</span><span class="pc" aria-label="${dev} cartas de ${S.ck?'progreso':'desarrollo'}">${ic('dev',13)}${dev}</span>${kn}</span></div>`}).join('')}</div>`;
 }
 
@@ -2943,6 +2966,8 @@ function logRow(line){
   if((m=line.match(/^(.+) roba una carta de (\S+)$/))){const tr=TRACK_BY_ES[m[2]];return row(`<span style="color:${TCOL[tr]||'inherit'}">${ic('dev',16)}</span>`,`${lp(m[1])} <span class="lw">+1 ${esc(m[2])}</span>`)}
   if((m=line.match(/^(.+) sube (\S+) a nivel (\d)$/))){const tr=TRACK_BY_ES[m[2]];return row(`<span style="color:${TCOL[tr]}">${ic('improve',16)}</span>`,`${lp(m[1])} <span class="lw">${esc(m[2])}</span> <span class="lvl sm" style="--tc:${TCOL[tr]}">${[1,2,3,4,5].map(i=>`<i class="${i<=+m[3]?'f':''}"></i>`).join('')}</span>`)}
   if((m=line.match(/^¡Empieza la partida! (.+) coloca primero$/)))return`<div class="lturn">${ic('dice',14)} Empieza · ${lp(m[1])}</div>`;
+  if((m=line.match(/^(.+) (pide fase de construcción|ya no pide construir)$/)))return row(ic('settlement',16),`${lp(m[1])} <span class="lw">${m[2]==='pide fase de construcción'?'pide construir':'ya no pide construir'}</span>`,'dim');
+  if((m=line.match(/^Fase de construcción: (.+)$/)))return`<div class="lturn">${ic('settlement',14)} Construcción · ${lp(m[1])}</div>`;
   if((m=line.match(/^(.+) (puso un caballero|activó un caballero|promovió un caballero a|movió un caballero)(.*)$/))){const w={'puso un caballero':'pone','activó un caballero':'activa','promovió un caballero a':'sube a','movió un caballero':'mueve'}[m[2]];
     return row(ic(m[2].startsWith('activó')?'activate':'knight',16),`${lp(m[1])} <span class="lw">${w}${m[3]?' '+esc(m[3].trim()):''}</span>`)}
   if((m=line.match(/^(.+) tiene la ruta más larga \((\d+)\)$/)))return row(`<span class="gold">${ic('road',16)}</span>`,`${lp(m[1])} <span class="lw">ruta más larga</span> <b>${m[2]}</b> <span class="gold">${ic('star',13)}</span>`,'pts');
