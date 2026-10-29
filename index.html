@@ -344,6 +344,14 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
 /* commodity tiles: the parent resource's color, lighter, with a woven stripe and a light rim */
 .rc.r-paper,.rc.r-cloth,.rc.r-coin{box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),inset 0 -3px 0 rgba(0,0,0,.18)}
 .rpick.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.alch{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:var(--panel);border:2px solid var(--hl)}
+.alrow{display:flex;flex-direction:column;gap:5px}
+.alch .dsel{gap:5px}
+.alch .dsel button{padding:3px;border-radius:10px;background:var(--bg)}
+.alch .dsel svg{width:100%;height:auto;max-width:40px;display:block;margin:auto}
+.alch .dsel button.on{border-color:var(--hl);background:color-mix(in srgb,var(--hl) 25%,var(--panel))}
+.alact{display:grid;grid-template-columns:auto 1fr;gap:8px}
+.alact button{min-height:50px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -1821,6 +1829,7 @@ function boardSvg(passive){
   out.push(`<defs>${glyphDefs()}</defs>`);
   out.push(`<rect x="${(x0-pad)*Z}" y="${(y0-pad)*Z}" width="${(x1-x0+2*pad)*Z}" height="${(y1-y0+2*pad)*Z}" fill="var(--sea2)"/>`);
   const rolled=S.dice&&S.phase==='play'&&S.dice[0]+S.dice[1]!==7?S.dice[0]+S.dice[1]:null;
+  const preview=!passive&&U.alcOn&&U.alcOn!==7?U.alcOn:null;
   B.hexes.forEach((h,i)=>{
     if(h.type==='sea'){out.push(`<polygon points="${poly(h,1)}" fill="var(--sea1)" stroke="var(--sea2)" stroke-width="1.5"/>`);return}
     out.push(`<polygon points="${poly(h,1)}" fill="#e8d9a8" stroke="#c9b67e" stroke-width="1"/>`);
@@ -1828,6 +1837,7 @@ function boardSvg(passive){
     const num=numOf(S,B,i);
     out.push(`<use href="#g-${h.type}" x="${h.x*Z-14}" y="${h.y*Z-(num?36:16)}" width="28" height="28"/>`);
     if(num){const red=num===6||num===8;const pips=6-Math.abs(7-num);
+      if(num===preview)out.push(`<polygon class="pulse" points="${poly(h,.9)}" fill="rgba(240,180,41,.22)" stroke="var(--hl)" stroke-width="4" stroke-dasharray="10 6"/>`);
       if(num===rolled)out.push(`<polygon points="${poly(h,.9)}" fill="none" stroke="${i===S.robber?'#555':'#fff6c4'}" stroke-width="4" opacity=".9"/><circle cx="${h.x*Z}" cy="${h.y*Z+7}" r="19" fill="none" stroke="var(--hl)" stroke-width="4"/>`);
       out.push(`<circle cx="${h.x*Z}" cy="${h.y*Z+7}" r="14.5" fill="#f6efd9" stroke="${U.inv.includes(i)?'#f0b429':'rgba(0,0,0,.25)'}" stroke-width="${U.inv.includes(i)?3:1}"/>`);
       out.push(`<text x="${h.x*Z}" y="${h.y*Z+10.5}" text-anchor="middle" font-family="Bricolage Grotesque,system-ui" font-weight="800" font-size="${num>9?13:15}" fill="${red?'#b8261b':'#2a2a2a'}">${num}</text>`);
@@ -2036,25 +2046,33 @@ function renderGame(){
   if(S.phase==='over'&&U.statsShownFor!==S.code+S.v0&&U.statsShownFor!==S.code+':'+S.winner){U.statsShownFor=S.code+':'+S.winner;U.sheet='stats'}
   const T0=targets(),need=T0.v.length+T0.e.length+T0.h.length>0;
   const wide=(window.innerWidth||0)>=900&&!ctrl;
-  const showBoard=!ctrl||need||U.showBoard;
+  /* Alchemist: pick the dice next to the map instead of in a sheet over it */
+  const alch=U.sheet==='prog'&&U.pcard==='alchemist'&&S.cur===pi&&S.step==='roll'&&S.phase==='play';
+  if(U.sheet==='prog'&&U.pcard==='alchemist'&&!alch){U.sheet=null;U.pcard=null}
+  U.alcOn=alch?U.alc.w+U.alc.r:null;
+  const showBoard=!ctrl||need||U.showBoard||alch;
   const st=status(false);
   const top=`<header class="gtop">
     <button class="iconb" id="mesa" aria-label="Mesa y opciones">${ic('menu',22)}</button>${P?`<button class="iconb" id="emob" aria-label="Reaccionar">${ic('smile',22)}</button>`:''}
     ${myChip(pi)}<span class="grow"></span>${barbMini()}${diceHtml(26)}${timerHtml(40)}${fsBtn()}
     ${ctrl&&!need?`<button class="iconb ${U.showBoard?'on':''}" id="tgb" aria-label="Ver tablero">${ic('board',22)}</button>`:''}
   </header>`;
+  if(alch){st.i='dice';st.t='Alquimista: elige los dados';st.me=true}
   const stat=`<div class="gstat ${st.me&&S.phase!=='over'?'me':''}">${ic(st.i,20)}<span>${st.t}</span>${U.mode?`<button class="sm" id="cmode">${ic('close',14)} Cancelar</button>`:''}</div>`;
   const handBlock=P?handHtml(P,showBoard&&!wide):'';
   /* while choosing a spot on a phone, the map takes the whole middle: no dock, no hand */
-  const focus=need&&!wide;
+  const focus=(need||alch)&&!wide;
   autoFrame(T0,need);
   const panel=`${top}${stat}${showBoard&&!wide?`<div class="gmid boardbox ${need?'ctrlboard':''}" id="board">${boardSvg()}${zoomCtl()}</div>`:''}
     ${!showBoard?`<div class="gmid handwrap">${handBlock}</div>`:focus?'':handBlock}
-    ${focus?'':offerHtml(pi)+dockHtml(pi)}`;
+    ${alch?alchPanel():focus?'':offerHtml(pi)+dockHtml(pi)}`;
   $('#app').innerHTML=`${comDefs()}${wide?`<div class="gwide"><div class="boardbox wb" id="board">${boardSvg()}${zoomCtl()}</div><div class="g">${panel}</div></div>`:`<div class="g">${panel}</div>`}`;
   const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};
   if($('#board')){$('#board').onclick=boardClick;bindZoom($('#board'))}
   on('mesa',()=>{U.sheet='mesa';renderSheet()});bindFS();
+  document.querySelectorAll('[data-alc]').forEach(b=>b.onclick=()=>{const[d,n]=b.dataset.alc.split('.');U.alc[d]=+n;renderGame()});
+  on('okp',()=>{U.sheet=null;U.alcOn=null;send({t:'prog',card:'alchemist',w:U.alc.w,r:U.alc.r})});
+  on('alcx',()=>{U.sheet=null;U.pcard=null;U.alcOn=null;renderGame()});
   on('emob',()=>{U.sheet='emo';renderSheet()});
   on('statsb',()=>{U.sheet='stats';renderSheet()});
   on('rematch',()=>send({t:'rematch'}));
@@ -2128,7 +2146,8 @@ function renderSheet(){
   else if(U.sheet==='stats'&&S.phase==='over')kind='stats';
   else if(P&&!screenish&&['cards','imp','emo'].includes(U.sheet))kind=U.sheet;
   else if(P&&!screenish&&U.sheet==='counter'&&S.offer&&S.offer.from!==pi)kind='counter';
-  else if(P&&!screenish&&U.sheet&&mine&&(S.step==='main'||(U.sheet==='prog'&&U.pcard==='alchemist'&&S.step==='roll')))kind=U.sheet;
+  else if(U.sheet==='prog'&&U.pcard==='alchemist'){box.innerHTML='';return}
+  else if(P&&!screenish&&U.sheet&&mine&&S.step==='main')kind=U.sheet;
   else U.sheet=null;
   if(!kind){box.innerHTML='';return}
   const title=(i,t,x)=>`<div class="sh">${ic(i,22)}<h3>${t}</h3>${x===false?'':`<button class="iconb" id="x" aria-label="Cerrar">${ic('close',20)}</button>`}</div>`;
@@ -2519,6 +2538,17 @@ function handleClosed(){
   if(!closingNow){closingNow=true;const c=G.code;toast(G.host===ME?'Cerraste la partida.':'Quien abrió la partida la cerró.');forgetGame(c);setTimeout(()=>{closingNow=false;closeGame()},900)}
   $('#app').innerHTML=`<p class="muted" style="padding:20px">La partida <span class="code">${esc(G.code)}</span> se cerró.</p>`;$('#sheet').innerHTML='';
   return true;
+}
+
+function alchPanel(){
+  const sum=U.alc.w+U.alc.r,B=board(G),hits=B.hexes.filter((h,i)=>numOf(G,B,i)===sum&&i!==G.robber).length;
+  const dsel=(id,val,red)=>`<div class="dsel">${[1,2,3,4,5,6].map(n=>`<button data-alc="${id}.${n}" class="${val===n?'on':''}" aria-label="${n}">${dieSvg(n,red)}</button>`).join('')}</div>`;
+  return`<div class="alch">
+    <div class="alrow"><span class="lbl">Dado blanco</span>${dsel('w',U.alc.w)}</div>
+    <div class="alrow"><span class="lbl">Dado rojo · decide las cartas de progreso</span>${dsel('r',U.alc.r,true)}</div>
+    <p class="desc">${sum===7?'Saldría 7: no hay producción y se mueve al ladrón.':`Saldría <b>${sum}</b>: produce${hits===1?' 1 loseta':` ${hits} losetas`}, marcadas en el mapa.`}</p>
+    <div class="alact"><button id="alcx">${ic('close',18)} Cancelar</button><button class="pri big" id="okp">${ic('dice',20)} Tirar ${sum}</button></div>
+  </div>`;
 }
 
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
