@@ -474,7 +474,7 @@ const PROG={
   bishop:{c:'politics',n:2,es:'Obispo',d:'Mueve al ladrón y roba 1 carta a cada jugador junto a esa loseta.'},
   constitution:{c:'politics',n:1,es:'Constitución',d:'+1 punto de victoria.',vp:true},
   deserter:{c:'politics',n:2,es:'Desertor',d:'Un rival quita su caballero más débil; tú colocas uno igual gratis.',need:'player'},
-  diplomat:{c:'politics',n:2,es:'Diplomático',d:'Quita un camino abierto de cualquier jugador.',need:'edge'},
+  diplomat:{c:'politics',n:2,es:'Diplomático',d:'Quita un camino abierto de un rival, o mueve uno tuyo a otro lugar.',need:'edge'},
   intrigue:{c:'politics',n:2,es:'Intriga',d:'Desplaza un caballero rival que toque tus caminos.',need:'knight'},
   saboteur:{c:'politics',n:2,es:'Saboteador',d:'Quien tenga tantos o más puntos que tú descarta la mitad de su mano, a su elección.'},
   spy:{c:'politics',n:3,es:'Espía',d:'Roba una carta de progreso a un rival.',need:'player'},
@@ -1179,7 +1179,7 @@ function act(S0,me,a,rand){
           if(!openRoads(S,B).includes(a.e))err('Elige un camino abierto.');
           const own=S.lines[a.e].p===pi,who=S.players[S.lines[a.e].p].name;delete S.lines[a.e];remove();
           if(own)S.free=(S.free||0)+1;
-          log(`${P.name} usa el Diplomático contra un camino de ${who}`);recalcLongest(S,B,log);break}
+          log(own?`${P.name} usa el Diplomático para mover uno de sus caminos`:`${P.name} usa el Diplomático y quita un camino de ${who}`);recalcLongest(S,B,log);break}
         case'intrigue':{
           const k=S.knights[a.v];if(!k||k.p===pi)err('Elige un caballero rival.');
           if(!B.verts[a.v].e.some(e=>S.lines[e]&&S.lines[e].p===pi))err('Debe tocar uno de tus caminos.');
@@ -2031,7 +2031,7 @@ const costTxt=c=>Object.entries(c).map(([k,q])=>(q>1?q+' ':'')+RES_ES[k]).join('
 
 const SHORT={road:'Elige dónde va el camino',ship:'Elige dónde va el barco',settlement:'Elige dónde va el poblado',city:'Elige qué poblado mejoras',
   knight:'Elige dónde va el caballero',activate:'Elige qué caballero activas',promote:'Elige qué caballero promueves',kmove:'Elige qué caballero mueves',kmove2:'Elige a dónde va',
-  kchase:'Elige qué caballero ahuyenta al ladrón',wall:'Elige qué ciudad amurallas',inventor:'Elige dos losetas',diplomat:'Elige qué camino quitas',intrigue:'Elige el caballero rival',merchant:'Elige dónde va el mercader'};
+  kchase:'Elige qué caballero ahuyenta al ladrón',wall:'Elige qué ciudad amurallas',inventor:'Elige dos losetas',diplomat:'Elige un camino abierto: de un rival para quitarlo, o tuyo para moverlo',intrigue:'Elige el caballero rival',merchant:'Elige dónde va el mercader'};
 
 function status(onScreen){
   const S=G,pi=onScreen?-1:myIdx(),cur=S.players[S.cur],mine=S.cur===pi,cn=esc(cur?.name||'');
