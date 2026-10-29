@@ -2020,8 +2020,12 @@ function boardSvg(passive){
     if(b.metro)out.push(`<path transform="translate(${x+2},${y-20})" d="M-8 4 L-8 -4 L-4 0 L0 -6 L4 0 L8 -4 L8 4 Z" fill="${TCOL[b.metro]}" stroke="#1d1d1d" stroke-width="1.5" stroke-linejoin="round"/>`);
   }
   for(const[v,k]of Object.entries(S.knights||{})){const V=B.verts[v],c=COLORS[S.players[k.p].color].c,x=V.x*Z,y=V.y*Z;
-    out.push(`<g transform="translate(${x},${y})"><circle r="11" fill="${k.active?c:'#f4f1e8'}" stroke="${k.active?'#1d1d1d':c}" stroke-width="${k.active?2:3.5}"/>`);
-    for(let i=0;i<k.lvl;i++)out.push(`<rect x="${-6+i*4.5}" y="-4" width="3" height="8" rx="1" fill="${k.active?'#1d1d1d':c}"/>`);
+    /* active: filled with the player's color, dark stripes. inactive: dark disc, ring and stripes in the player's color (readable for white too) */
+    out.push(`<g transform="translate(${x},${y})"><circle r="12.5" fill="#1d1d1d"/>`);
+    if(k.active)out.push(`<circle r="10.5" fill="${c}"/>`);
+    else out.push(`<circle r="9.2" fill="#2b3036" stroke="${c}" stroke-width="2.6"/>`);
+    const bx=-(k.lvl*4.5-1.5)/2;
+    for(let i=0;i<k.lvl;i++)out.push(`<rect x="${bx+i*4.5}" y="-4.5" width="3" height="9" rx="1" fill="${k.active?'#1d1d1d':c}"/>`);
     if(U.cb)out.push(`<text y="-14" text-anchor="middle" font-family="Nunito Sans,system-ui" font-weight="900" font-size="10" fill="#fff" stroke="#1d1d1d" stroke-width="2.2" paint-order="stroke">${esc((S.players[k.p].name||'?')[0].toUpperCase())}</text>`);
     out.push(`</g>`);
   }
