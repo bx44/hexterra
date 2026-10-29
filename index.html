@@ -422,6 +422,8 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
 .pstrip.tight .pchip{border-top:3px solid var(--pc);padding:3px 5px}
 .pstrip.tight .pchip .dot{display:none}
 .pstrip.tight .pchip .pl2{gap:3px}
+.pchip .pc.kn.on{color:var(--ink)}
+.kstr{font-size:11px;opacity:.75;margin-left:1px}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -2131,7 +2133,7 @@ function renderScreen(){
     const ks=Object.values(S.knights||{}).filter(k=>k.p===i),kact=ks.filter(k=>k.active).reduce((s,k)=>s+k.lvl,0);
     return`<div class="pl ${S.cur===i&&S.phase!=='over'?'cur':''}"><span class="dot" style="background:${COLORS[p.color].c}"></span>
     <div class="pm"><div class="nm">${esc(p.name)}${p.bot?`<span class="tag bot">bot</span>`:''}${S.longest===i?`<span class="tag">${ic('road',12)} ruta</span>`:''}${S.army===i?`<span class="tag">${ic('knight',12)} ejército</span>`:''}</div>
-    <div class="st"><span data-cc="${p.id}" class="${sumRes(p.res)>handLimit(S,i)?'warn':''}">${ic('cards',14)} ${sumRes(p.res)}</span>${S.ck?`<span>${ic('dev',14)} ${p.prog.length}</span><span>${ic('knight',14)} ${kact}</span><span class="tr"><i style="background:${TCOL.trade}">${p.imp.trade}</i><i style="background:${TCOL.politics}">${p.imp.politics}</i><i style="background:${TCOL.science}">${p.imp.science}</i></span>`:`<span>${ic('dev',14)} ${(p.dev||[]).length+(p.newDev||[]).length}</span><span>${ic('knight',14)} ${p.knights}</span>`}<span>${ic('road',14)} ${S.roadLen?.[i]||0}</span></div></div>
+    <div class="st"><span data-cc="${p.id}" class="${sumRes(p.res)>handLimit(S,i)?'warn':''}">${ic('cards',14)} ${sumRes(p.res)}</span>${S.ck?`<span>${ic('dev',14)} ${p.prog.length}</span><span title="Caballeros activos · fuerza">${ic('knight',14)} ${ks.filter(k=>k.active).length}${kact?`<small class="kstr">·${kact}</small>`:''}</span><span class="tr"><i style="background:${TCOL.trade}">${p.imp.trade}</i><i style="background:${TCOL.politics}">${p.imp.politics}</i><i style="background:${TCOL.science}">${p.imp.science}</i></span>`:`<span>${ic('dev',14)} ${(p.dev||[]).length+(p.newDev||[]).length}</span><span>${ic('knight',14)} ${p.knights}</span>`}<span>${ic('road',14)} ${S.roadLen?.[i]||0}</span></div></div>
     ${emoFor(i)}<div class="vp">${vpOf(S,i,S.phase==='over')}</div></div>`}).join('');
   const o=S.offer;
   $('#sheet').innerHTML='';
@@ -2687,9 +2689,12 @@ function playersStrip(pi){
   return`<div class="pstrip ${n0>=5?'tight':''}" style="--n:${n0}" role="list" aria-label="Jugadores">${S.players.map((p,i)=>{
     const n=p.res?sumRes(p.res):0,danger=S.phase==='play'&&n>handLimit(S,i);
     const dev=S.ck?(p.prog||[]).length:((p.dev||[]).length+(p.newDev||[]).length);
+    const kAll=Object.values(S.knights||{}).filter(k=>k.p===i),kOn=kAll.filter(k=>k.active),kStr=kOn.reduce((t,k)=>t+k.lvl,0);
+    const kn=S.ck?`<span class="pc kn ${kOn.length?'on':''}" aria-label="${kOn.length} caballero${kOn.length===1?'':'s'} activo${kOn.length===1?'':'s'} de ${kAll.length}, fuerza ${kStr}" title="Caballeros activos ${kOn.length} de ${kAll.length} · fuerza ${kStr}">${ic('knight',11)}${kOn.length}</span>`
+      :`<span class="pc kn ${p.knights?'on':''}" aria-label="${p.knights||0} caballeros jugados" title="Caballeros jugados">${ic('knight',11)}${p.knights||0}</span>`;
     return`<div class="pchip ${S.cur===i&&S.phase!=='over'?'cur':''} ${i===pi?'me':''}" style="--pc:${COLORS[p.color].c}" role="listitem" title="${esc(p.name)}">
       <span class="pl1"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="pn">${esc(p.name)}</span><b class="pv" aria-label="puntos">${vpOf(S,i,i===pi||S.phase==='over')}</b></span>
-      <span class="pl2"><span class="pc ${danger?'danger':''}" data-cc="${p.id}" aria-label="${n} cartas${danger?', en peligro con el ladrón':''}">${ic('cards',13)}${n}</span><span class="pc" aria-label="${dev} cartas de ${S.ck?'progreso':'desarrollo'}">${ic('dev',13)}${dev}</span></span></div>`}).join('')}</div>`;
+      <span class="pl2"><span class="pc ${danger?'danger':''}" data-cc="${p.id}" aria-label="${n} cartas${danger?', en peligro con el ladrón':''}">${ic('cards',13)}${n}</span><span class="pc" aria-label="${dev} cartas de ${S.ck?'progreso':'desarrollo'}">${ic('dev',13)}${dev}</span>${kn}</span></div>`}).join('')}</div>`;
 }
 
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
