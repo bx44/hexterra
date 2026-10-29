@@ -118,7 +118,7 @@ body.ingame #app{max-width:none;height:100dvh;height:100vh;height:100dvh}
 .sm{padding:5px 9px;font-size:13px;display:inline-flex;align-items:center;gap:4px;border-radius:9px}
 .gmid{flex:1;min-height:0}
 .boardbox{background:var(--sea2);border-radius:16px;overflow:hidden;position:relative;touch-action:none}
-.boardbox svg{display:block;width:100%;height:100%}
+.boardbox>svg{display:block;width:100%;height:100%}
 .gmid.boardbox{display:flex}
 .ctrlboard{outline:3px solid var(--hl);outline-offset:-3px}
 .handwrap{display:flex;align-items:center}
@@ -424,6 +424,35 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
 .pstrip.tight .pchip .pl2{gap:3px}
 .pchip .pc.kn.on{color:var(--ink)}
 .kstr{font-size:11px;opacity:.75;margin-left:1px}
+
+/* map popover: what can be done at the tapped spot */
+.tap{cursor:pointer}
+.mpop{position:absolute;z-index:6;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 28px rgba(0,0,0,.35);min-width:170px;max-width:240px}
+.mpop button{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;text-align:left;font-weight:800;font-size:14px;background:var(--bg)}
+.mpop button>span:first-of-type{flex:1}
+.mpop button.no{opacity:.45}
+.mpop button:not(.no):not(.px){border:2px solid var(--hl)}
+.mpop .pipr{max-width:62px}
+.mpop .free{font-size:11px;font-weight:800;color:var(--accent)}
+.mpop .px{align-self:flex-end;padding:4px 8px;background:transparent;border:0;position:absolute;top:-12px;right:-12px;border-radius:50%;background:var(--panel);border:1px solid var(--line)}
+
+/* the log never collapses inside a panel */
+.sheet .log{flex:0 0 auto;min-height:60px;max-height:220px;overflow:auto}
+/* on a computer the log lives under the buttons and fills the rest of the column */
+.wlog{flex:1 1 0;min-height:70px;display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+.wlog .log{flex:1;min-height:0;overflow:auto}
+.g.sheeton .wlog{display:none}
+.wlog{min-height:0}.wlog .lbl{flex:0 0 auto}
+/* short laptop windows: compact hand and buttons so the column never needs scrolling */
+@media (max-height:720px){
+  .gwide .hand:not(.mini){gap:4px}
+  .gwide .hand:not(.mini) .rc{flex-direction:row;justify-content:center;padding:5px 2px;gap:3px;border-radius:9px}
+  .gwide .hand:not(.mini) .rc svg{width:20px;height:20px}
+  .gwide .hand:not(.mini) .rc b{font-size:18px}
+  .gwide .hand:not(.mini) .rc span{display:none}
+  .gwide .db{min-height:56px;padding:5px 2px}
+  .gwide .db.wide{min-height:46px}
+}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -2008,6 +2037,19 @@ function boardSvg(passive){
   T.h.forEach(i=>{const h=B.hexes[i];out.push(`<polygon class="tgt" data-h="${i}" points="${poly(h,.9)}" fill="rgba(240,180,41,.18)" stroke="var(--hl)" stroke-width="3"/>`)});
   T.e.forEach(i=>{const E=B.edges[i],a=B.verts[E.a],b=B.verts[E.b];out.push(`<g class="tgt" data-e="${i}"><line x1="${a.x*Z}" y1="${a.y*Z}" x2="${b.x*Z}" y2="${b.y*Z}" stroke="transparent" stroke-width="18"/><line class="pulse" x1="${(a.x+(b.x-a.x)*.2)*Z}" y1="${(a.y+(b.y-a.y)*.2)*Z}" x2="${(b.x+(a.x-b.x)*.2)*Z}" y2="${(b.y+(a.y-b.y)*.2)*Z}" stroke="var(--hl)" stroke-width="6" stroke-linecap="round"/></g>`)});
   T.v.forEach(i=>{const V=B.verts[i];out.push(`<g class="tgt" data-v="${i}"><circle cx="${V.x*Z}" cy="${V.y*Z}" r="15" fill="transparent"/><circle class="pulse" cx="${V.x*Z}" cy="${V.y*Z}" r="${S.build[i]||(S.knights||{})[i]?13:7}" fill="${S.build[i]||(S.knights||{})[i]?'none':'var(--hl)'}" stroke="${S.build[i]||(S.knights||{})[i]?'var(--hl)':'#2a1d00'}" stroke-width="${S.build[i]||(S.knights||{})[i]?3.5:1.5}"/></g>`)});
+  /* free mode: on your turn, every useful spot on the map can be tapped */
+  if(!passive&&freeMode()){
+    const O=mapOpts();
+    for(const[e,os]of Object.entries(O.e)){if(!os.some(o=>o.ok))continue;const E=B.edges[e],a=B.verts[E.a],b=B.verts[E.b];
+      out.push(`<line x1="${(a.x+(b.x-a.x)*.3)*Z}" y1="${(a.y+(b.y-a.y)*.3)*Z}" x2="${(b.x+(a.x-b.x)*.3)*Z}" y2="${(b.y+(a.y-b.y)*.3)*Z}" stroke="rgba(255,246,196,.95)" stroke-width="4" stroke-dasharray="5 5" stroke-linecap="round" pointer-events="none"/>`)}
+    for(const[v,os]of Object.entries(O.v)){const V=B.verts[v],x=V.x*Z,y=V.y*Z,set=os.find(o=>o.k==='settlement'),city=os.find(o=>o.k==='city');
+      if(set)out.push(`<circle cx="${x}" cy="${y}" r="${set.ok?6:4.5}" fill="${set.ok?'var(--hl)':'rgba(255,255,255,.45)'}" stroke="${set.ok?'#2a1d00':'none'}" stroke-width="1.3" pointer-events="none"/>`);
+      if(city&&city.ok)out.push(`<circle cx="${x}" cy="${y}" r="15" fill="none" stroke="var(--hl)" stroke-width="2.5" stroke-dasharray="5 4" pointer-events="none"/>`)}
+    for(const e of Object.keys(O.e)){const E=B.edges[e],a=B.verts[E.a],b=B.verts[E.b];
+      out.push(`<line class="tap" data-te="${e}" x1="${(a.x+(b.x-a.x)*.22)*Z}" y1="${(a.y+(b.y-a.y)*.22)*Z}" x2="${(b.x+(a.x-b.x)*.22)*Z}" y2="${(b.y+(a.y-b.y)*.22)*Z}" stroke="transparent" stroke-width="16"/>`)}
+    for(const v of Object.keys(O.v)){const V=B.verts[v];out.push(`<circle class="tap" data-tv="${v}" cx="${V.x*Z}" cy="${V.y*Z}" r="13" fill="transparent"/>`)}
+    if(U.pop){const P0=U.pop.k==='v'?B.verts[U.pop.id]:B.edges[U.pop.id];if(P0)out.push(`<circle cx="${P0.x*Z}" cy="${P0.y*Z}" r="17" fill="none" stroke="#fff" stroke-width="3" pointer-events="none"/>`)}
+  }
   out.push('</svg>');
   return out.join('');
 }
@@ -2053,7 +2095,7 @@ function status(onScreen){
   if(st==='steal')return{i:'robber',t:'Elige a quién robarle',me:true};
   if(U.mode&&!onScreen)return{i:'board',t:SHORT[U.mode==='kmove'&&U.kfrom!=null?'kmove2':U.mode],me:true};
   const ex=[];if(S.free)ex.push(`${S.free} camino gratis`);if(S.freeKnight)ex.push('caballero gratis');if(S.tf?.smith)ex.push(`${S.tf.smith} promoción gratis`);if(S.tf?.engineer)ex.push('muralla gratis');
-  return{i:'people',t:ex.length?'Tienes '+ex.join(', '):'Tu turno · construye o comercia',me:true};
+  return{i:'people',t:ex.length?'Tienes '+ex.join(', '):'Tu turno · toca el mapa o usa los botones',me:true};
 }
 function diceHtml(size){
   const S=G;if(!S.dice)return'';
@@ -2190,10 +2232,11 @@ function renderGame(){
   autoFrame(T0,need);
   const panel=`${top}${stat}${playersStrip(pi)}${showBoard&&!wide?`<div class="gmid boardbox ${need?'ctrlboard':''}" id="board">${boardSvg()}${zoomCtl()}</div>`:''}
     ${!showBoard?`<div class="gmid handwrap">${handBlock}</div>`:focus?'':handBlock}
-    ${alch?alchPanel():focus?'':`<div class="slot" id="dockslot"><div id="dockwrap">${offerHtml(pi)}${dockHtml(pi)}</div><div id="sheetwrap"></div></div>`}`;
+    ${alch?alchPanel():focus?'':`<div class="slot" id="dockslot"><div id="dockwrap">${offerHtml(pi)}${dockHtml(pi)}</div><div id="sheetwrap"></div></div>`}
+    ${wide&&!alch?`<div class="wlog" aria-label="Bitácora"><div class="lbl">Bitácora</div><div class="log">${S.log.slice(-30).reverse().map(l=>`<div>${esc(l)}</div>`).join('')}</div></div>`:''}`;
   $('#app').innerHTML=`${comDefs()}${wide?`<div class="gwide"><div class="boardbox wb" id="board">${boardSvg()}${zoomCtl()}</div><div class="g">${panel}</div></div>`:`<div class="g">${panel}</div>`}`;
   const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};
-  if($('#board')){$('#board').onclick=boardClick;bindZoom($('#board'))}
+  if($('#board')){$('#board').onclick=boardClick;bindZoom($('#board'));placePop()}
   on('mesa',()=>{U.sheet='mesa';renderSheet()});bindFS();
   document.querySelectorAll('[data-alc]').forEach(b=>b.onclick=()=>{const[d,n]=b.dataset.alc.split('.');U.alc[d]=+n;renderGame()});
   on('okp',()=>{U.sheet=null;U.alcOn=null;send({t:'prog',card:'alchemist',w:U.alc.w,r:U.alc.r})});
@@ -2232,7 +2275,13 @@ function playProg(c){
   U.sheet='prog';renderSheet();
 }
 function boardClick(ev){
-  const t=ev.target.closest('.tgt');if(!t||!G)return;
+  if(!G)return;
+  const po=ev.target.closest('[data-po]');if(po){popAct(po.dataset.po);return}
+  if(ev.target.closest('.mpop'))return;
+  const tap=ev.target.closest('.tap');
+  if(tap&&!ev.target.closest('.tgt')){U.pop=tap.dataset.tv!=null?{k:'v',id:+tap.dataset.tv}:{k:'e',id:+tap.dataset.te};renderGame();return}
+  const t=ev.target.closest('.tgt');
+  if(!t){if(U.pop){U.pop=null;renderGame()}return}
   const S=G,B=board(S),m=U.mode;
   if(t.dataset.h!=null){const h=+t.dataset.h;
     if(m==='inventor'){U.inv.push(h);if(U.inv.length===2)return send({t:'prog',card:'inventor',hs:U.inv});return renderGame()}
@@ -2483,7 +2532,7 @@ function scheduleBots(){
 /* ---------- map zoom: pinch, drag, + / − ---------- */
 function zoomCtl(){return`<div class="zoom"><button data-z="in" aria-label="Acercar">+</button><button data-z="out" aria-label="Alejar">−</button>${(U.zoom||1)>1.01?`<button data-z="fit" aria-label="Ver todo">${ic('board',18)}</button>`:''}</div>`}
 function applyVB(){const svg=document.getElementById('bsvg');if(svg&&G)svg.setAttribute('viewBox',viewBoxFor(G,board(G)))}
-function setZoom(z,cx,cy){U.zoom=Math.max(1,Math.min(4,z));if(U.zoom<=1.01){U.zoom=1;U.zcx=U.zcy=null}else{if(cx!=null){U.zcx=cx;U.zcy=cy}}applyVB();const zc=document.querySelector('.zoom');if(zc)zc.outerHTML=zoomCtl(),bindZoomBtns()}
+function setZoom(z,cx,cy){if(U.pop){U.pop=null;const m=document.querySelector('.mpop');if(m)m.remove()}U.zoom=Math.max(1,Math.min(4,z));if(U.zoom<=1.01){U.zoom=1;U.zcx=U.zcy=null}else{if(cx!=null){U.zcx=cx;U.zcy=cy}}applyVB();const zc=document.querySelector('.zoom');if(zc)zc.outerHTML=zoomCtl(),bindZoomBtns()}
 function bindZoomBtns(){document.querySelectorAll('[data-z]').forEach(b=>b.onclick=e=>{e.stopPropagation();const z=U.zoom||1;
   if(b.dataset.z==='in')setZoom(z*1.5);else if(b.dataset.z==='out')setZoom(z/1.5);else setZoom(1)})}
 function bindZoom(box){
@@ -2695,6 +2744,64 @@ function playersStrip(pi){
     return`<div class="pchip ${S.cur===i&&S.phase!=='over'?'cur':''} ${i===pi?'me':''}" style="--pc:${COLORS[p.color].c}" role="listitem" title="${esc(p.name)}">
       <span class="pl1"><span class="dot" style="background:${COLORS[p.color].c}"></span><span class="pn">${esc(p.name)}</span><b class="pv" aria-label="puntos">${vpOf(S,i,i===pi||S.phase==='over')}</b></span>
       <span class="pl2"><span class="pc ${danger?'danger':''}" data-cc="${p.id}" aria-label="${n} cartas${danger?', en peligro con el ladrón':''}">${ic('cards',13)}${n}</span><span class="pc" aria-label="${dev} cartas de ${S.ck?'progreso':'desarrollo'}">${ic('dev',13)}${dev}</span>${kn}</span></div>`}).join('')}</div>`;
+}
+
+/* ---------- build by tapping the map ---------- */
+function freeMode(){
+  const S=G;if(!S||S.phase!=='play'||S.step!=='main'||U.mode||viewOf()==='screen')return false;
+  const pi=myIdx();return pi>=0&&S.cur===pi;
+}
+/* what can be done at each spot of the map, with its cost and whether it can be paid now */
+function mapOpts(){
+  const S=G,B=board(S),pi=myIdx(),P=S.players[pi],pcs=countPieces(S,pi),M=MODES[S.mode],out={v:{},e:{}};
+  const can=c=>hasRes(P.res,c),add=(t,id,o)=>{(t[id]=t[id]||[]).push(o)};
+  B.verts.forEach((V,v)=>{
+    if(canSettle(S,B,v,pi,false))add(out.v,v,{k:'settlement',icon:'settlement',l:'Poblado',cost:COST.settlement,ok:can(COST.settlement)&&pcs.settlement<5,a:{t:'build',kind:'settlement',v}});
+    if(canCity(S,v,pi)){const c=S.tf&&S.tf.medicine?{ore:2,wheat:1}:COST.city;add(out.v,v,{k:'city',icon:'city',l:'Ciudad',cost:c,ok:can(c)&&pcs.city<4,a:{t:'build',kind:'city',v}})}
+    if(!S.ck)return;
+    const b=S.build[v],k=S.knights[v];
+    if(b&&b.p===pi&&b.t==='city'&&!b.wall){const c=S.tf&&S.tf.engineer?{}:COST.wall;add(out.v,v,{k:'wall',icon:'wall',l:'Muralla',cost:c,ok:(S.tf&&S.tf.engineer||can(COST.wall))&&pcs.wall<3,a:{t:'wall',v}})}
+    if(!b&&!k&&knightSpot(S,B,v,pi)){const lvl=S.freeKnight||1,c=S.freeKnight?{}:COST.knight;add(out.v,v,{k:'knight',icon:'knight',l:S.freeKnight?`Caballero ${KNAME[lvl]}`:'Caballero',cost:c,ok:(S.freeKnight||can(COST.knight))&&pcs['k'+lvl]<2,a:{t:'knight',v}})}
+    if(k&&k.p===pi){
+      if(!k.active)add(out.v,v,{k:'activate',icon:'activate',l:'Activar',cost:COST.activate,ok:can(COST.activate),a:{t:'activate',v}});
+      if(k.lvl<3&&k.proT!==S.turnNo){const c=S.tf&&S.tf.smith?{}:COST.promote,okLvl=!(k.lvl===2&&P.imp.politics<3)&&pcs['k'+(k.lvl+1)]<2;add(out.v,v,{k:'promote',icon:'promote',l:`Promover a ${KNAME[k.lvl+1]}`,cost:c,ok:okLvl&&(S.tf&&S.tf.smith||can(COST.promote)),a:{t:'promote',v}})}
+      if(knightCanAct(S,v,pi)&&knightMoves(S,B,v,pi).length)add(out.v,v,{k:'kmove',icon:'move',l:'Mover',cost:{},ok:true,a:{mode:'kmove',v}});
+      if(knightCanAct(S,v,pi)&&S.attacked&&B.hexes[S.robber].v.includes(v))add(out.v,v,{k:'kchase',icon:'chase',l:'Ahuyentar ladrón',cost:{},ok:true,a:{t:'kchase',v}});
+    }
+  });
+  const free=S.free>0;
+  B.edges.forEach((E,e)=>{
+    if(canLine(S,B,e,pi,'road',null))add(out.e,e,{k:'road',icon:'road',l:free?'Camino gratis':'Camino',cost:free?{}:COST.road,ok:(free||can(COST.road))&&pcs.road<15,a:{t:'build',kind:'road',e}});
+    if(M.ships&&canLine(S,B,e,pi,'ship',null))add(out.e,e,{k:'ship',icon:'ship',l:free?'Barco gratis':'Barco',cost:free?{}:COST.ship,ok:(free||can(COST.ship))&&pcs.ship<15,a:{t:'build',kind:'ship',e}});
+  });
+  return out;
+}
+function popHtml(){
+  if(!U.pop||!freeMode())return'';
+  const O=mapOpts(),os=(U.pop.k==='v'?O.v:O.e)[U.pop.id];
+  if(!os||!os.length){U.pop=null;return''}
+  return`<div class="mpop" role="menu" aria-label="Acciones aquí">${os.map((o,j)=>`<button class="${o.ok?'':'no'}" data-po="${j}" ${o.ok?'':'disabled'} role="menuitem">${ic(o.icon,20)}<span>${o.l}</span>${Object.keys(o.cost).length?pips(o.cost):'<span class="free">gratis</span>'}${o.ok?ic('check',16):''}</button>`).join('')}<button class="px" data-po="x" aria-label="Cerrar">${ic('close',16)}</button></div>`;
+}
+function placePop(){
+  const box=$('#board');if(!box)return;
+  const old=box.querySelector('.mpop');if(old)old.remove();
+  const html=popHtml();if(!html)return;
+  box.insertAdjacentHTML('beforeend',html);
+  const m=box.querySelector('.mpop'),svg=document.getElementById('bsvg'),B=board(G);
+  const P0=U.pop.k==='v'?B.verts[U.pop.id]:B.edges[U.pop.id];
+  const pt=svg.createSVGPoint();pt.x=P0.x*48;pt.y=P0.y*48;const c=pt.matrixTransform(svg.getScreenCTM());
+  const r=box.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  let x=c.x-r.left-w/2,y=c.y-r.top-h-20;
+  if(y<6)y=c.y-r.top+22;
+  x=Math.max(6,Math.min(r.width-w-6,x));y=Math.max(6,Math.min(r.height-h-6,y));
+  m.style.left=x+'px';m.style.top=y+'px';
+}
+function popAct(j){
+  if(j==='x'){U.pop=null;renderGame();return}
+  const O=mapOpts(),os=(U.pop&&(U.pop.k==='v'?O.v:O.e)[U.pop.id])||[],o=os[+j];U.pop=null;
+  if(!o||!o.ok){renderGame();return}
+  if(o.a.mode){U.mode=o.a.mode;U.kfrom=o.a.v;renderGame();return}
+  send(o.a);
 }
 
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
