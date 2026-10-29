@@ -488,6 +488,7 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
 .why.compact{padding:8px 10px}
 .lpts{display:inline-flex;align-items:center;gap:2px;color:#2a1d00;background:#e8b93a;border-radius:99px;padding:0 6px;font-size:12px}
 .lpts .ic{color:#2a1d00}
+.modes{grid-template-columns:repeat(2,minmax(0,1fr))}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -515,8 +516,9 @@ const COST={road:{wood:1,brick:1},ship:{wood:1,sheep:1},settlement:{wood:1,brick
 const LIMIT={settlement:5,city:4,road:15,ship:15};
 const MODES={
   base:{name:'Clásico',desc:'3–4 jugadores · isla de 19 losetas',min:2,max:4,target:10,bank:19},
-  grande:{name:'Gran isla',desc:'5–6 jugadores · 30 losetas, 11 puertos',min:3,max:6,target:10,bank:24},
-  mar:{name:'Navegantes',desc:'2–4 jugadores · barcos, islas y oro',min:2,max:4,target:13,bank:19,ships:true}
+  grande:{name:'Gran isla',desc:'5–6 jugadores · 30 losetas, 11 puertos',min:3,max:6,target:10,bank:24,big:true},
+  mar:{name:'Navegantes',desc:'2–4 jugadores · barcos, islas y oro',min:2,max:4,target:13,bank:19,ships:true},
+  margrande:{name:'Navegantes 5–6',desc:'5–6 jugadores · isla grande, barcos y 6 islas',min:3,max:6,target:14,bank:24,ships:true,big:true}
 };
 const defaultTarget=S=>MODES[S.mode].target+(S.ck?3:0);
 const targetOf=S=>(S.cfg&&S.cfg.vp)||defaultTarget(S);
@@ -567,20 +569,23 @@ function genBoard(mode,seed){
   const sh=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
   const key=(q,r)=>q+','+r;
   const land=[];
-  if(mode==='grande'){for(let r=-3;r<=3;r++)for(let q=Math.max(-3,-3-r)+1;q<=Math.min(3,3-r);q++)land.push({q,r,isl:0})}
+  const BIG=mode==='grande'||mode==='margrande',SEA=mode==='mar'||mode==='margrande';
+  if(BIG){for(let r=-3;r<=3;r++)for(let q=Math.max(-3,-3-r)+1;q<=Math.min(3,3-r);q++)land.push({q,r,isl:0})}
   else{for(let q=-2;q<=2;q++)for(let r=-2;r<=2;r++)if(hexDist(q,r)<=2)land.push({q,r,isl:0})}
+  if(mode==='margrande'){[[[-3,-2],[-2,-3]],[[3,-5],[4,-5]],[[5,-2],[5,-1]],[[3,2],[2,3]],[[-2,5],[-3,5]],[[-5,3],[-5,2]]].forEach((g,i)=>g.forEach(([q,r])=>land.push({q,r,isl:i+1})))}
   if(mode==='mar'){[[[4,-4],[3,-4]],[[4,0],[4,-1]],[[-4,4],[-3,4]],[[-4,0],[-4,1]],[[0,4],[1,3]]].forEach((g,i)=>g.forEach(([q,r])=>land.push({q,r,isl:i+1})))}
   const L=new Set(land.map(h=>key(h.q,h.r)));
   const sea=[];
-  if(mode==='mar'){for(let q=-4;q<=4;q++)for(let r=-4;r<=4;r++)if(hexDist(q,r)<=4&&!L.has(key(q,r)))sea.push({q,r})}
+  if(SEA){const R=mode==='margrande'?5:4;for(let q=-R;q<=R;q++)for(let r=-R;r<=R;r++)if(hexDist(q,r)<=R&&!L.has(key(q,r)))sea.push({q,r})}
   else{const seen=new Set();land.forEach(h=>DIRS.forEach(([dq,dr])=>{const k=key(h.q+dq,h.r+dr);if(!L.has(k)&&!seen.has(k)){seen.add(k);sea.push({q:h.q+dq,r:h.r+dr})}}))}
-  const mainT=sh(mode==='grande'?tally({wood:6,brick:5,sheep:6,wheat:6,ore:5,desert:2}):tally({wood:4,brick:3,sheep:4,wheat:4,ore:3,desert:1}));
-  const islT=sh(tally({gold:2,wood:2,brick:2,sheep:1,wheat:1,ore:2}));
+  const mainT=sh(BIG?tally({wood:6,brick:5,sheep:6,wheat:6,ore:5,desert:2}):tally({wood:4,brick:3,sheep:4,wheat:4,ore:3,desert:1}));
+  const islT=sh(tally(mode==='margrande'?{gold:2,wood:2,brick:2,sheep:2,wheat:2,ore:2}:{gold:2,wood:2,brick:2,sheep:1,wheat:1,ore:2}));
   const hexes=[];
   land.forEach(h=>hexes.push({q:h.q,r:h.r,isl:h.isl,type:h.isl===0?mainT.pop():islT.pop()}));
   sea.forEach(h=>hexes.push({q:h.q,r:h.r,isl:-1,type:'sea'}));
-  let nums=mode==='grande'?[2,2,3,3,3,4,4,4,5,5,5,6,6,6,8,8,8,9,9,9,10,10,10,11,11,11,12,12]:[2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12];
+  let nums=BIG?[2,2,3,3,3,4,4,4,5,5,5,6,6,6,8,8,8,9,9,9,10,10,10,11,11,11,12,12]:[2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12];
   if(mode==='mar')nums=nums.concat([2,3,4,5,6,8,9,10,11,12]);
+  if(mode==='margrande')nums=nums.concat([2,3,4,5,6,8,9,10,11,12,4,10]);
   const prod=hexes.filter(h=>h.type!=='sea'&&h.type!=='desert');
   const idx=new Map(hexes.map((h,i)=>[key(h.q,h.r),i]));
   const hot=n=>n===6||n===8;
@@ -594,7 +599,7 @@ function genBoard(mode,seed){
   const vk=(x,y)=>Math.round(x*1000)+'_'+Math.round(y*1000);
   hexes.forEach((h,hi)=>{
     h.x=R3*(h.q+h.r/2);h.y=1.5*h.r;h.v=[];
-    const include=mode==='mar'||h.type!=='sea';
+    const include=SEA||h.type!=='sea';
     const cs=[];
     for(let i=0;i<6;i++){
       const an=Math.PI/180*(60*i-30),x=h.x+Math.cos(an),y=h.y+Math.sin(an),k=vk(x,y);
@@ -618,8 +623,8 @@ function genBoard(mode,seed){
   const cx=mainH.reduce((s,h)=>s+h.x,0)/mainH.length,cy=mainH.reduce((s,h)=>s+h.y,0)/mainH.length;
   const coast=edges.map((e,i)=>i).filter(i=>{const e=edges[i];return e.h.some(j=>hexes[j].isl===0)&&e.h.some(j=>hexes[j].type==='sea')});
   coast.sort((a,b)=>Math.atan2(edges[a].y-cy,edges[a].x-cx)-Math.atan2(edges[b].y-cy,edges[b].x-cx));
-  const NP=mode==='grande'?11:9;
-  const ptypes=sh(mode==='grande'?['any','any','any','any','any','wood','brick','sheep','wheat','ore','sheep']:['any','any','any','any','wood','brick','sheep','wheat','ore']);
+  const NP=BIG?11:9;
+  const ptypes=sh(BIG?['any','any','any','any','any','wood','brick','sheep','wheat','ore','sheep']:['any','any','any','any','wood','brick','sheep','wheat','ore']);
   const off=rnd()*coast.length/NP,ports=[];
   for(let i=0;i<NP;i++){
     const ei=coast[Math.floor(off+i*coast.length/NP)%coast.length],e=edges[ei];
@@ -668,7 +673,7 @@ function canSettle(S,B,v,pi,setup){
   const V=B.verts[v];
   if(!V||!V.land||S.build[v]||(S.knights&&S.knights[v]))return false;
   if(V.adj.some(a=>S.build[a]))return false;
-  if(setup)return S.mode!=='mar'||V.isl===0;
+  if(setup)return !MODES[S.mode].ships||V.isl===0;
   return V.e.some(e=>S.lines[e]&&S.lines[e].p===pi);
 }
 function canLine(S,B,e,pi,kind,setupV){
@@ -849,7 +854,7 @@ function act(S0,me,a,rand){
   const takeRandom=(from,to,q,keys)=>{let got=0;for(let i=0;i<q;i++){const pool=(keys||K).flatMap(k=>Array(from.res[k]).fill(k));if(!pool.length)break;const k=pool[Math.floor(rand()*pool.length)];from.res[k]--;if(to)to.res[k]++;else S.bank[k]++;got++}return got};
   const afterSettle=v=>{
     const V=B.verts[v];
-    if(S.mode==='mar'&&V.isl>0&&!(P.islands||[]).includes(V.isl)){P.islands=[...(P.islands||[]),V.isl];log(`${P.name} llegó a una isla nueva: +2 puntos`)}
+    if(MODES[S.mode].ships&&V.isl>0&&!(P.islands||[]).includes(V.isl)){P.islands=[...(P.islands||[]),V.isl];log(`${P.name} llegó a una isla nueva: +2 puntos`)}
   };
   const mainOrRoll=()=>needStep('main');
   function drawProg(i,color){
@@ -968,12 +973,12 @@ function act(S0,me,a,rand){
       S.players.forEach(p=>{p.res=Object.fromEntries(K.map(k=>[k,0]));p.dev=[];p.newDev=[];p.knights=0;p.islands=[];
         if(S.ck){p.imp={trade:0,politics:0,science:0};p.prog=[];p.vpc=[]}});
       S.pids=S.players.map(p=>p.id);
-      S.bank=Object.fromEntries(K.map(k=>[k,COM.includes(k)?(S.mode==='grande'?16:12):M.bank]));
+      S.bank=Object.fromEntries(K.map(k=>[k,COM.includes(k)?(M.big?16:12):M.bank]));
       if(S.ck){
         S.deck=[];S.barb=0;S.attacked=false;S.metro={trade:null,politics:null,science:null};S.merchant=null;S.event=null;
         S.pdeck={};TRACKS.forEach(c=>S.pdeck[c]=shuffle(Object.entries(PROG).filter(([k,d])=>d.c===c).flatMap(([k,d])=>Array(d.n).fill(k))));
       }else{
-        S.deck=shuffle(tally(S.mode==='grande'?{knight:20,vp:5,road:3,plenty:3,mono:3}:{knight:14,vp:5,road:2,plenty:2,mono:2}));
+        S.deck=shuffle(tally(M.big?{knight:20,vp:5,road:3,plenty:3,mono:3}:{knight:14,vp:5,road:2,plenty:2,mono:2}));
       }
       S.knights={};S.nums={};
       S.robber=B.robber;S.longest=null;S.army=null;S.roadLen=S.players.map(()=>0);
@@ -1488,7 +1493,7 @@ function vScore(S,B,v,pi,prod){
     const w=resWeight(S,H.type)*(h===S.robber?.4:1);s+=p*w;
     if(prod&&!prod[H.type]&&!seen.has(H.type))s+=p*.45;seen.add(H.type)});
   if(V.port==='any')s+=1.2;else if(V.port&&prod&&prod[V.port]>=4)s+=2;else if(V.port)s+=.6;
-  if(S.mode==='mar'&&V.isl>0&&!(S.players[pi].islands||[]).includes(V.isl))s+=5;
+  if(MODES[S.mode].ships&&V.isl>0&&!(S.players[pi].islands||[]).includes(V.isl))s+=5;
   return s;
 }
 function edgeValue(S,B,e,pi,prod){
