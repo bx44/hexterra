@@ -492,6 +492,48 @@ button.dangerl{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,va
 .rules{display:flex;flex-direction:column;gap:8px}
 .toggle:disabled{opacity:.75;cursor:default}
 .sbq{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:5px;background:var(--hl);color:#2a1d00;flex:none}
+
+/* ---- history ---- */
+.hbar{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.hbar .tabs button.sm{padding:6px 10px}
+.rk td.nmc{font-weight:800;text-align:left!important;white-space:nowrap}
+.rk th:nth-child(2){text-align:left!important}
+.pos{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--soft);font-family:var(--f-display);font-size:13px}
+.pos.p1{background:#e8b93a;color:#2a1d00}.pos.p2{background:#c9ced3;color:#1d2328}.pos.p3{background:#c98a52;color:#2a1608}
+.hg{padding:0;gap:0}
+.hgh{display:flex;flex-direction:column;align-items:stretch;gap:4px;text-align:left;padding:12px 14px;border:0;background:transparent;border-radius:16px;width:100%}
+.hgw{display:flex;align-items:center;gap:6px;font-size:15px}
+.hgw .ic{color:#d6a51f}
+.hgp{display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px;font-weight:700;color:var(--muted)}
+.hpp{display:inline-flex;align-items:center;gap:4px}
+.hd{display:flex;flex-direction:column;gap:8px;padding:0 14px 14px}
+.hdp{padding:8px 10px;border-radius:10px;background:var(--bg);border:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.hdp.win{border-color:var(--hl)}
+.hdh{display:flex;align-items:center;gap:6px;font-weight:800}
+.hdw{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px}
+.hdw span{display:inline-flex;align-items:center;gap:3px}
+.hdw b{color:var(--accent)}
+.hh{display:flex;gap:4px;align-items:flex-end;height:64px}
+.hh span{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--muted)}
+.hh i{display:block;width:100%;max-width:22px;border-radius:3px 3px 0 0;background:var(--accent)}
+.hh i.r{background:#c4362a}.hh i.s{background:var(--muted)}
+.recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.rec .rv{font-family:var(--f-display);font-weight:800;font-size:26px}
+.merge select{font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-width:0}
+.chipx{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:99px;background:var(--soft);font-size:13px;font-weight:700}
+.mrank{display:flex;flex-direction:column;gap:5px;padding-top:8px;border-top:1px dashed var(--line)}
+.mr{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;font-weight:700}
+.hist-btn{display:flex;align-items:center;gap:8px;justify-content:center}
+.btnlike{display:inline-flex;align-items:center;gap:6px;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 14px;font-weight:700}
+.hx{margin-top:12px}
+
+.hst{display:flex;flex-wrap:wrap;gap:4px 12px}.hst span{display:inline-flex;align-items:center;gap:4px}.hst svg{display:inline-block}
+.mrank .lbl{display:flex;align-items:center;gap:6px}.mrank .lbl svg{display:inline-block}
+#hexp{display:inline-flex;flex-direction:row;align-items:center;gap:6px}
+.rkwrap{overflow-x:auto}
+@media (max-width:620px){.rk th:nth-child(6),.rk td:nth-child(6),.rk th:nth-child(8),.rk td:nth-child(8),.rk th:nth-child(9),.rk td:nth-child(9){display:none}.rk th,.rk td{padding-left:4px;padding-right:4px}}
+.rk th .ab{display:none;font-style:normal}
+@media (max-width:620px){.rk th{font-size:0}.rk th .ab,.rk th:nth-child(-n+2){font-size:11px}.rk th .ab{display:inline}}
 body{margin:0;padding-top:max(14px,env(safe-area-inset-top,0px))}
 [hidden]{display:none!important}
 </style>
@@ -997,7 +1039,7 @@ function act(S0,me,a,rand){
       S.knights={};S.nums={};
       S.robber=B.robber;S.longest=null;S.army=null;S.roadLen=S.players.map(()=>0);
       S.order=[...Array(n).keys(),...[...Array(n).keys()].reverse()];S.si=0;S.cur=S.order[0];S.step='setS';
-      S.phase='setup';S.turnNo=0;S.paused=null;S.rollId=0;S.stats={rolls:Array(13).fill(0),prod:S.players.map(()=>0),stole:S.players.map(()=>0),lost:S.players.map(()=>0),trades:S.players.map(()=>0)};S.dice=null;S.offer=null;S.devPlayed=false;S.free=0;S.tf={};
+      S.startedAt=Date.now();S.phase='setup';S.turnNo=0;S.paused=null;S.rollId=0;S.stats={rolls:Array(13).fill(0),prod:S.players.map(()=>0),stole:S.players.map(()=>0),lost:S.players.map(()=>0),trades:S.players.map(()=>0)};S.dice=null;S.offer=null;S.devPlayed=false;S.free=0;S.tf={};
       log(`¡Empieza la partida! ${S.players[S.cur].name} coloca primero`);break;
     }
     case'setS':{
@@ -1864,6 +1906,8 @@ const IC={
   chart:'<path d="M4 20 V10 M10 20 V4 M16 20 V13 M22 20 H2" stroke-width="2.6"/>',
   eye:'<path d="M2 12 Q12 3 22 12 Q12 21 2 12 Z"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>',
   trash:'<path d="M4 7 H20 M9 7 V4 H15 V7 M6 7 L7 20 H17 L18 7 M10 11 V16 M14 11 V16"/>',
+  hist:'<path d="M4 12 A8 8 0 1 0 6.3 6.3"/><path d="M4 4 V8 H8 M12 8 V12 L15 14"/>',
+  medal:'<circle cx="12" cy="15" r="5.5" fill="currentColor" stroke="none"/><path d="M8 3 L10.5 9.5 M16 3 L13.5 9.5"/>',
   fs:'<path d="M4 9 V4 H9 M15 4 H20 V9 M20 15 V20 H15 M9 20 H4 V15" stroke-width="2.4"/>',
   fsx:'<path d="M9 4 V9 H4 M20 9 H15 V4 M15 20 V15 H20 M4 15 H9 V20" stroke-width="2.4"/>'
 };
@@ -3029,6 +3073,114 @@ function bindNewGame(rerender){
 function newGameTarget(){return MODES[U.newMode].target+(U.ck?3:0)}
 function applyNewGameRules(S){S.ext56=!!U.ext56;S.ships=MODES[U.newMode].needShips?true:!!U.ships;return S}
 
+/* =========================================================
+   History, ranking and house records
+   ========================================================= */
+const RULE_FILTERS=[['all','Todas'],['plain','Sin expansiones'],['ck','Ciudades y caballeros'],['ships','Navegantes'],['ext56','5–6 jugadores']];
+const normName=n=>String(n||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function aliases(){try{return JSON.parse(localStorage.getItem('hx-alias')||'{}')}catch(e){return{}}}
+function keyOf(name){const a=aliases();let k=normName(name),i=0;while(a[k]&&i++<10)k=a[k];return k}
+/* a finished game, frozen into a small record */
+function gameRecord(S){
+  const R=RULES(S),st=S.stats||{},order=S.players.map((p,i)=>i).sort((a,b)=>(b===S.winner)-(a===S.winner)||vpOf(S,b,true)-vpOf(S,a,true));
+  return{id:S.code+'-'+(S.startedAt||S.created||0),code:S.code,at:Date.now(),started:S.startedAt||null,mode:S.mode,ck:!!S.ck,ships:!!R.ships,ext56:!!R.ext56,
+    name:modeName(S),target:targetOf(S),turns:S.turnNo||0,rolls:st.rolls||null,
+    players:order.map((i,pos)=>{const p=S.players[i];return{name:p.name,bot:p.bot||null,color:p.color,vp:vpOf(S,i,true),pos:pos+1,win:i===S.winner,
+      why:vpBreakdown(S,i).map(([icn,t,v])=>[icn,t,v]),prod:(st.prod||[])[i]||0,stole:(st.stole||[])[i]||0,lost:(st.lost||[])[i]||0,trades:(st.trades||[])[i]||0}})};
+}
+const recorded=new Set();
+function maybeRecord(){
+  if(!G||G.phase!=='over'||G.winner==null||!G.players)return;
+  const id=G.code+'-'+(G.startedAt||G.created||0);if(recorded.has(id))return;recorded.add(id);
+  try{saveRecord(gameRecord(G))}catch(e){console.warn('history',e)}
+}
+function filterRecs(recs){
+  const f=U.hf||'all';
+  return recs.filter(r=>f==='all'||(f==='plain'?!r.ck&&!r.ships&&!r.ext56:r[f]));
+}
+function rankingOf(recs,withBots){
+  const by={};
+  [...recs].sort((a,b)=>a.at-b.at).forEach(r=>r.players.forEach(p=>{
+    if(p.bot&&!withBots)return;
+    const k=p.bot?'bot:'+normName(p.name):keyOf(p.name);
+    const x=by[k]=by[k]||{k,name:p.name,bot:p.bot,games:0,wins:0,pos:0,vp:0,streak:0,best:0,last:0};
+    x.name=p.name;x.games++;x.pos+=p.pos;x.vp+=p.vp;x.last=r.at;
+    if(p.win){x.wins++;x.streak++;x.best=Math.max(x.best,x.streak)}else x.streak=0;
+  }));
+  return Object.values(by).map(x=>({...x,pct:x.games?x.wins/x.games:0,avgPos:x.games?x.pos/x.games:0,avgVp:x.games?x.vp/x.games:0}))
+    .sort((a,b)=>b.wins-a.wins||b.pct-a.pct||a.avgPos-b.avgPos||b.games-a.games);
+}
+function recordsOf(recs,withBots){
+  const out=[];const ok=p=>withBots||!p.bot;
+  const best=(label,icon,get,better,fmt)=>{let w=null;recs.forEach(r=>r.players.forEach(p=>{if(!ok(p))return;const v=get(p,r);if(v==null)return;if(!w||better(v,w.v))w={v,p,r}}));if(w)out.push({label,icon,w,fmt})};
+  best('Victoria más rápida','dice',(p,r)=>p.win&&r.turns?r.turns:null,(a,b)=>a<b,v=>`${v} turnos`);
+  best('Más puntos en una partida','star',p=>p.vp,(a,b)=>a>b,v=>`${v} puntos`);
+  best('Más recursos en una partida','cards',p=>p.prod||null,(a,b)=>a>b,v=>`${v} cartas`);
+  best('Más robos en una partida','robber',p=>p.stole||null,(a,b)=>a>b,v=>`${v} robos`);
+  best('Más intercambios en una partida','trade',p=>p.trades||null,(a,b)=>a>b,v=>`${v} cambios`);
+  return out;
+}
+const fmtDate=t=>{try{return new Date(t).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}catch(e){return''}};
+const fmtDur=r=>r.started?`${Math.max(1,Math.round((r.at-r.started)/60000))} min`:'';
+function pchip(p){return`<span class="lp"><i style="background:${COLORS[p.color||0].c}"></i>${esc(p.name)}${p.bot?' <small class="muted">bot</small>':''}</span>`}
+function miniRanking(recs,n){
+  const rk=rankingOf(recs,false).slice(0,n||5);
+  if(!rk.length)return'';
+  return`<div class="mrank"><div class="lbl">${ic('medal',14)} Ranking de esta mesa</div>${rk.map((x,i)=>`<div class="mr"><b class="pos p${i+1}">${i+1}</b><span class="nm2">${esc(x.name)}</span><span class="muted small">${x.wins} de ${x.games}</span></div>`).join('')}</div>`;
+}
+async function renderHistory(){
+  setGameMode(false);$('#sheet').innerHTML='';
+  $('#app').innerHTML=`<p class="muted">Cargando historial…</p>`;
+  let all=[];try{all=await loadHistory()}catch(e){all=[]}
+  if(U.page!=='history')return;
+  const recs=filterRecs(all),wb=!!U.hb,tab=U.ht||'rank';
+  const head=`<div class="top"><div class="row"><button id="hback">← Inicio</button><h2>Historial</h2></div><span class="muted small">${all.length} partida${all.length===1?'':'s'} guardada${all.length===1?'':'s'}${HISTORY_WHERE?' · '+HISTORY_WHERE:''}</span></div>
+    <div class="hbar"><div class="tabs">${[['rank','medal','Ranking'],['games','hist','Partidas'],['recs','trophy','Récords']].map(([k,i,l])=>`<button data-ht="${k}" class="${tab===k?'on':''}">${ic(i,16)} ${l}</button>`).join('')}</div>
+    <div class="tabs">${RULE_FILTERS.map(([k,l])=>`<button data-hf="${k}" class="sm ${U.hf===k||(!U.hf&&k==='all')?'on':''}">${l}</button>`).join('')}<button class="sm ${wb?'on':''}" id="hbots">${ic('people',14)} ${wb?'Con bots':'Solo personas'}</button></div></div>`;
+  let body='';
+  if(!all.length)body=`<div class="card"><p class="desc">Aún no hay partidas terminadas en ${HISTORY_WHERE||'este historial'}. Cuando termine una, aparecerá aquí con su ranking y récords.</p></div>`;
+  else if(tab==='rank'){
+    const rk=rankingOf(recs,wb);
+    body=rk.length?`<div class="card"><div class="tw"><table class="st2 rk"><thead><tr><th>#</th><th>Jugador</th><th>Victorias<i class="ab">Gan.</i></th><th>Partidas<i class="ab">Jug.</i></th><th>% victorias<i class="ab">%</i></th><th>Lugar prom.</th><th>Puntos prom.<i class="ab">Pts.</i></th><th>Racha</th><th>Mejor racha</th></tr></thead><tbody>
+      ${rk.map((x,i)=>`<tr><td><b class="pos p${i+1}">${i+1}</b></td><td class="nmc">${esc(x.name)}${x.bot?' <small class="muted">bot</small>':''}</td><td><b>${x.wins}</b></td><td>${x.games}</td><td>${Math.round(x.pct*100)}%</td><td>${x.avgPos.toFixed(1)}</td><td>${x.avgVp.toFixed(1)}</td><td>${x.streak||'—'}</td><td>${x.best||'—'}</td></tr>`).join('')}</tbody></table></div></div>
+      ${mergeHtml(all)}`:`<div class="card"><p class="desc">No hay partidas con estos filtros.</p></div>`;
+  }else if(tab==='games'){
+    body=recs.length?`<div class="glist">${[...recs].sort((a,b)=>b.at-a.at).map(r=>{const open=U.hopen===r.id,w=r.players.find(p=>p.win)||r.players[0];
+      return`<div class="hg card ${open?'open':''}"><button class="hgh" data-hopen="${esc(r.id)}"><span class="hgw">${ic('trophy',16)} ${pchip(w)} <b>${w.vp}</b></span><span class="small muted">${fmtDate(r.at)} · ${esc(r.name)} · ${r.turns} turnos${fmtDur(r)?' · '+fmtDur(r):''}</span>
+        <span class="hgp">${r.players.map(p=>`<span class="hpp">${p.pos}. ${pchip(p)} ${p.vp}</span>`).join('')}</span></button>
+        ${open?gameDetail(r):''}</div>`}).join('')}</div>`:`<div class="card"><p class="desc">No hay partidas con estos filtros.</p></div>`;
+  }else{
+    const rc=recordsOf(recs,wb);
+    body=rc.length?`<div class="recs">${rc.map(x=>`<div class="card rec"><div class="lbl">${ic(x.icon,14)} ${x.label}</div><div class="rv">${x.fmt(x.w.v)}</div><div class="small">${pchip(x.w.p)} <span class="muted">· ${fmtDate(x.w.r.at)} · ${esc(x.w.r.name)}</span></div></div>`).join('')}</div>`:`<div class="card"><p class="desc">No hay récords con estos filtros.</p></div>`;
+  }
+  $('#app').innerHTML=head+body+(HISTORY_TOOLS?HISTORY_TOOLS():'');
+  const q=(sel,f)=>document.querySelectorAll(sel).forEach(b=>b.onclick=()=>f(b));
+  $('#hback').onclick=()=>{U.page=null;render()};
+  q('[data-ht]',b=>{U.ht=b.dataset.ht;renderHistory()});
+  q('[data-hf]',b=>{U.hf=b.dataset.hf;renderHistory()});
+  $('#hbots').onclick=()=>{U.hb=!U.hb;renderHistory()};
+  q('[data-hopen]',b=>{U.hopen=U.hopen===b.dataset.hopen?null:b.dataset.hopen;renderHistory()});
+  if($('#mergeBtn'))$('#mergeBtn').onclick=()=>{const a=$('#mA').value,b=$('#mB').value;if(!a||!b||a===b){toast('Elige dos nombres distintos.');return}
+    const al=aliases();al[a]=b;try{localStorage.setItem('hx-alias',JSON.stringify(al))}catch(e){};toast('Nombres unidos.');renderHistory()};
+  q('[data-unalias]',b=>{const al=aliases();delete al[b.dataset.unalias];try{localStorage.setItem('hx-alias',JSON.stringify(al))}catch(e){};renderHistory()});
+  if(HISTORY_BIND)HISTORY_BIND(all);
+}
+function gameDetail(r){
+  const max=Math.max(1,...(r.rolls||[0]).slice(2));
+  const hist=r.rolls?`<div class="lbl">Dados</div><div class="hh">${[2,3,4,5,6,7,8,9,10,11,12].map(n=>`<span><i style="height:${Math.round((r.rolls[n]||0)/max*44)+2}px" class="${n===7?'s':n===6||n===8?'r':''}"></i><b>${n}</b></span>`).join('')}</div>`:'';
+  return`<div class="hd">${r.players.map(p=>`<div class="hdp ${p.win?'win':''}"><div class="hdh">${p.pos}. ${pchip(p)} <b>${p.vp}</b></div>
+    <div class="hdw">${(p.why||[]).map(([icn,t,v])=>`<span>${ic(icn,13)} ${esc(t)} <b>+${v}</b></span>`).join('')}</div>
+    <div class="small muted hst"><span>${ic('cards',12)} ${p.prod} recursos</span><span>${ic('robber',12)} ${p.stole} robos</span><span>${ic('trade',12)} ${p.trades} cambios</span></div></div>`).join('')}${hist}</div>`;
+}
+function mergeHtml(all){
+  const names={};all.forEach(r=>r.players.forEach(p=>{if(!p.bot)names[normName(p.name)]=p.name}));
+  const ks=Object.keys(names).sort();if(ks.length<2)return'';
+  const al=aliases(),opts=ks.map(k=>`<option value="${esc(k)}">${esc(names[k])}</option>`).join('');
+  return`<div class="card merge"><div class="lbl">¿Una persona con dos nombres?</div>
+    <div class="row"><select id="mA"><option value="">Nombre…</option>${opts}</select><span class="muted">es la misma persona que</span><select id="mB"><option value="">Nombre…</option>${opts}</select><button id="mergeBtn">Unir</button></div>
+    ${Object.keys(al).length?`<div class="row">${Object.entries(al).map(([a,b])=>`<span class="chipx">${esc(names[a]||a)} → ${esc(names[b]||b)} <button class="sm" data-unalias="${esc(a)}" aria-label="Separar">${ic('close',12)}</button></span>`).join('')}</div>`:''}</div>`;
+}
+
 /* ---------- networking: the screen (host) keeps the game; phones send actions to it ---------- */
 function resetLocal(a){if(a.t!=='join'){U.mode=null;U.kfrom=null;U.inv=[];U.pcard=null}}
 async function send(a){
@@ -3115,7 +3267,8 @@ function drawQR(el,code){if(!el)return;el.innerHTML='';try{new QRCode(el,{text:j
 
 /* ---------- render root ---------- */
 function render(){
-  soundCheck();scheduleBots();
+  soundCheck();scheduleBots();maybeRecord();
+  if(U.page==='history'&&!U.code){renderHistory();return}
   if(!G||G.phase==='lobby'||!U.code)setGameMode(false);
   if(!U.code)return renderHome();
   if(!G){$('#app').innerHTML=`<div class="top"><button id="back">← Inicio</button>${netPill()}</div><p class="muted">Buscando la partida <span class="code">${esc(U.code)}</span>…</p><p class="small muted">La pantalla de la mesa tiene que estar abierta. Si están en la misma casa, usen el mismo Wi-Fi.</p>`;$('#sheet').innerHTML='';$('#back').onclick=closeGame;return}
@@ -3152,6 +3305,7 @@ function renderHome(){
       <div class="lbl">Tiempo por turno</div><div class="tabs" id="tmr">${TIMERS.map(([v,l])=>`<button data-tm="${v}" class="${U.timer===v?'on':''}">${l}</button>`).join('')}</div>
       <p class="small muted" style="margin:0" id="tgt"></p>
       <button class="pri" id="create">${U.table?'Abrir mesa en esta pantalla':'Crear partida (este dispositivo la guarda)'}</button>
+      <button class="hist-btn" id="histb">${ic('medal',18)} Historial y ranking</button>
       ${hosted.length?`<div class="lbl">Partidas guardadas aquí</div><div class="glist">${hosted.map(S=>delRow(S.code,`<button class="gitem" data-res="${S.code}"><span><span class="code">${S.code}</span> · ${esc(modeName(S))}<br><span class="small muted">${S.players.map(p=>esc(p.name)).join(', ')||'sin jugadores'}</span></span><span class="small muted">${S.phase==='lobby'?'en sala':'turno '+(S.turnNo||0)}<br>retomar</span></button>`,'Borrar partida')).join('')}</div>${hosted.length>1?delAllRow('Borrar todas las partidas guardadas'):''}`:''}
     </section>
   </div>
@@ -3161,6 +3315,7 @@ function renderHome(){
   $('#tb').onclick=()=>{U.table=!U.table;try{localStorage.setItem('hx-table',U.table?'1':'0')}catch(_){}renderHome()};
   document.querySelectorAll('[data-tm]').forEach(b=>b.onclick=()=>{U.timer=+b.dataset.tm;try{localStorage.setItem('hx-timer',String(U.timer))}catch(_){}document.querySelectorAll('[data-tm]').forEach(x=>x.classList.toggle('on',x===b))});
   $('#create').onclick=createGame;
+  $('#histb').onclick=()=>{U.page='history';U.hopen=null;render()};
   $('#join').onclick=()=>{if(!U.name.trim()){toast('Escribe tu nombre primero.');$('#nm').focus();return}U.pre=null;joinRemote($('#jc').value)};
   $('#jscr').onclick=()=>{U.pre=null;joinRemote($('#jc').value,true)};
   $('#jc').onkeydown=e=>{if(e.key==='Enter')$('#join').click()};
@@ -3193,6 +3348,7 @@ function renderLobby(){
      <section class="card"><div class="lbl">En la mesa</div>
        ${lobbyPlayers()}${lobbySettings()}
        ${inG?'':`<button id="jn">También juego desde este dispositivo</button>`}
+       ${tableRanking()}
      </section>
     </div>`;
     $('#back').onclick=closeGame;bindFS();drawQR($('#qr'),G.code);bindLobbyBots();bindLobbySettings();
@@ -3238,6 +3394,20 @@ const amBotHost=()=>isHost;
 async function sendAs(id,a){const e=hostApply(id,a);if(e)console.warn('bot:',e)}
 
 const INSTALL_HINT=/iPhone|iPad|iPod/.test(navigator.userAgent)?'En iPhone: toca Compartir y luego "Agregar a inicio". Desde ese ícono el juego abre sin barras.':'';
+
+/* ---------- history lives in this device ---------- */
+const HISTORY_WHERE='en este dispositivo';
+function histLocal(){try{return JSON.parse(localStorage.getItem('hx-history')||'[]')}catch(e){return[]}}
+async function loadHistory(){return histLocal()}
+function saveRecord(rec){const h=histLocal();if(h.some(r=>r.id===rec.id))return;h.push(rec);while(h.length>500)h.shift();try{localStorage.setItem('hx-history',JSON.stringify(h))}catch(e){}}
+function tableRanking(){return miniRanking(histLocal(),5)}
+function HISTORY_TOOLS(){return`<div class="card hx"><div class="lbl">Llevar el historial a otro dispositivo</div>
+  <p class="desc">Descarga el archivo y ábrelo con "Importar" en el otro dispositivo. Las partidas repetidas no se duplican.</p>
+  <div class="row"><button id="hexp">${ic('exit',16)} Exportar</button><label class="btnlike" for="himp">${ic('hist',16)} Importar</label><input type="file" id="himp" accept="application/json,.json" hidden></div></div>`}
+function HISTORY_BIND(all){
+  $('#hexp').onclick=()=>{try{const blob=new Blob([JSON.stringify({hexterra:1,games:histLocal(),alias:aliases()})],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hexterra-historial.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}catch(e){toast('No se pudo exportar.')}};
+  $('#himp').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);const add=(d.games||d||[]).filter(r=>r&&r.id&&r.players);const h=histLocal(),ids=new Set(h.map(r=>r.id));let n=0;add.forEach(r=>{if(!ids.has(r.id)){h.push(r);n++}});h.sort((a,b)=>a.at-b.at);try{localStorage.setItem('hx-history',JSON.stringify(h.slice(-500)));if(d.alias)localStorage.setItem('hx-alias',JSON.stringify({...d.alias,...aliases()}))}catch(_){}toast(n?`Se agregaron ${n} partida${n>1?'s':''}.`:'No había partidas nuevas.');renderHistory()}catch(err){toast('Ese archivo no es un historial de Hexterra.')}};rd.readAsText(f)};
+}
 </script>
 </body>
 </html>
